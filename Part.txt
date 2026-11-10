@@ -1,0 +1,340 @@
+Part	Who uses it	Main purpose
+Android app	Employees	Login, check-in/out, breaks, attendance history, leave and correction requests
+HR/Admin web portal	HR, managers and administrators	Manage employees, shifts, attendance, approvals, reports and settings
+Shared backend and database	Both applications	Authenticate users, enforce attendance rules, store records and calculate results
+
+
+Both applications must use the same backend, so an employee’s check-in becomes visible to HR immediately after the server accepts it.
+
+Below is the development process I recommend for your app.
+
+1. Finalize the requirements before starting development
+
+Use the designs we created as the starting point. Prepare a Functional Requirements Specification covering each screen, its fields, buttons, validation and permissions.
+
+Define these modules:
+Module	Functions
+Authentication	Email OTP, fingerprint verification, sessions, device registration and recovery
+Employee management	Employee creation, department, designation, reporting manager and employment status
+Workplace management	Office/site details, location coordinates and allowed attendance area
+Shift management	Shift templates, employee assignments, weekly offs and holidays
+Attendance	Check-in/out, breaks, late arrival, early departure and missing punches
+Leave	Leave types, balances, applications and approvals
+Corrections	Missing check-in/out requests and approval history
+Reporting	Daily attendance, monthly summaries, exceptions and exports
+Administration	Roles, policies, audit history and system settings
+
+
+For the first version, keep payroll integration as a later phase. First make attendance recording and approval reliable.
+
+Output of this step: An agreed requirements document and a defined first-release scope.
+
+2. Define the roles and access
+
+I recommend four roles, even if managers initially use the same web portal as HR.
+Role	Allowed access
+Employee	Own attendance, roster, leave balance and requests
+Reporting manager	Assigned team attendance and approval requests
+HR	Employee records, roster management, attendance review, leave administration and reports
+System admin	User access, workplaces, policies, integrations and system configuration
+
+
+Apply these permissions in the backend. Hiding a button on the screen does not prevent unauthorized access.
+
+For example, changing an employee ID in a request must never allow someone to read another employee’s attendance.
+
+3. Agree on the attendance rules
+
+These rules determine how your backend works. Make them configurable instead of writing fixed values into the app.
+Decision	What you need to define
+Shift timings	General, morning, evening and night shifts
+Late arrival	Allowed grace period and when to flag lateness
+Early departure	When an early check-out becomes an exception
+Breaks	Paid/unpaid breaks, allowed duration and maximum number
+Workplace boundary	Allowed location area for each site
+Outside-site attendance	Block, flag for review, or permit for approved employees
+Missing check-out	Reminder, correction request and HR review process
+Multiple sessions	Whether employees can check in more than once per shift
+Overnight work	Which shift/date owns attendance crossing midnight
+Weekly offs and holidays	Company calendar and employee-specific roster
+Overtime	Eligibility, calculation and approval
+Attendance closure	When HR finalizes a month and how later corrections work
+
+
+For your shift-based team, test these example shifts explicitly: 08:00–16:00, 16:00–00:00 and 00:00–08:00.
+
+A night shift must remain one attendance session even when its calendar date changes.
+
+Output of this step: An attendance policy matrix that developers and HR both understand.
+
+4. Finalize the login and fingerprint process
+
+There is one implementation detail to refine from the mockup: the phone’s fingerprint check verifies an enrolled device biometric; it does not independently identify the employee in your HR database.
+
+Use Android’s system biometric prompt. Your app should not capture or store fingerprint images or templates. Android keeps biometric data within its protected system environment. developer.android.com
+
+I recommend the following account lifecycle:
+
+First-time activation
+1. HR creates an active employee account with their work email.
+2. Employee opens the Android app.
+3. Employee verifies their email using an OTP.
+4. The backend matches the verified email to the HR-created account.
+5. The app registers a device-specific cryptographic key against that account.
+6. Employee enables fingerprint-protected access to that key.
+7. The app opens the attendance dashboard.
+Later logins, following your requested design
+1. Employee completes fingerprint verification.
+2. The app proves access to the registered device key.
+3. Employee confirms their registered email.
+4. Backend sends an OTP.
+5. Employee submits the OTP.
+6. Backend verifies the complete login challenge and creates a session.
+This keeps your fingerprint → email → OTP flow for registered users. Android supports biometric-protected cryptographic operations through BiometricPrompt and CryptoObject. developer.android.com
+
+Also define recovery for a lost phone, changed device, missing fingerprint hardware and biometric lockout. HR should have an audited device-reset process.
+
+For the HR/Admin website, use separate web authentication with MFA. Decide whether your organization will use its existing identity provider or a dedicated account system.
+
+5. Choose the development stack
+
+A practical starting architecture is:
+Layer	Suggested choice	Purpose
+Android	Kotlin + Jetpack Compose	Native employee application
+HR/Admin website	React + TypeScript	Browser-based management portal
+Backend	Node.js + NestJS	Shared API and business rules
+Database	PostgreSQL	Employee, attendance, roster and request records
+File storage	Private object storage or protected server storage	Leave/correction attachments
+Email	Company-approved SMTP or email service	OTP and transactional emails
+Deployment	Docker-based services	Repeatable development and server setup
+
+
+These are implementation choices, not mandatory requirements. The important decision is to keep one authoritative attendance engine in the backend.
+
+Suggested repository structure:
+attendance-system/
+  android-app/
+  hr-web/
+  backend/
+  infrastructure/
+  documentation/
+
+Use Git from the beginning, with separate development, testing and production environments.
+
+6. Design the database
+
+Create the schema before connecting the screens to live data.
+Table/group	What it stores
+Users and roles	Login identity and permissions
+Employees	Employee code, department, manager and status
+Workplaces	Site name, timezone, coordinates and permitted boundary
+Employee workplace assignments	Which sites an employee can attend
+Shift templates	Shift timings, breaks and grace rules
+Shift assignments	Employee roster for specific dates
+Holidays	Workplace/company holiday calendar
+Attendance sessions	A work session linked to an employee and shift
+Attendance events	Check-in, check-out, break-start and break-end events
+Break intervals	Actual break start/end times
+Leave requests and ledger	Applications, decisions and balance transactions
+Correction requests	Requested changes, reasons and approval status
+Registered devices	Device public keys, approval and revocation status
+Authentication challenges	OTP challenges, expiry and attempt limits
+Audit logs	Who changed what, when and why
+Policy versions	Rules applicable to each attendance period
+
+
+Preserve original punch events. When HR approves a correction, store the adjustment and its history rather than silently replacing the original record.
+
+Store timestamps consistently, normally in UTC, and calculate the attendance day using the workplace timezone and assigned shift. Display dates in your preferred dd-MM-yyyy format.
+
+7. Build the backend first
+
+Implement the backend in small modules:
+1. Authentication and device registration.
+2. Employee and role management.
+3. Workplace configuration.
+4. Shift templates and assignments.
+5. Attendance events and calculations.
+6. Leave and correction approvals.
+7. Reports and exports.
+8. Notifications and audit history.
+Typical API operations include:
+POST /auth/otp/request
+POST /auth/otp/verify
+POST /auth/devices/register
+
+GET  /me
+GET  /me/shift
+GET  /me/attendance
+
+POST /attendance/check-in
+POST /attendance/break-start
+POST /attendance/break-end
+POST /attendance/check-out
+
+POST /leave-requests
+POST /correction-requests
+
+GET  /hr/attendance
+GET  /hr/requests
+POST /hr/requests/{id}/approve
+POST /hr/requests/{id}/reject
+
+For every operation, validate the employee’s identity, permissions, workplace assignment and current attendance state.
+
+Add duplicate-request protection. If an employee taps “Check in” twice, or a request retries after a timeout, the server should return the same result rather than create two check-ins.
+
+8. Build the attendance engine
+
+The attendance engine is the most important part of the system.
+
+A check-in should follow this sequence:
+1. App requests a fresh location.
+2. App submits the check-in request with its unique request ID.
+3. Backend verifies the session and registered device.
+4. Backend checks employee status, workplace assignment and shift.
+5. Backend evaluates location freshness, accuracy and distance.
+6. Backend checks for an existing open attendance session.
+7. Backend records the accepted event using server time.
+8. Backend returns the authoritative attendance status.
+9. App displays the successful check-in.
+Show “Checked in” only after server confirmation.
+
+For ordinary check-in/out, request location while the employee uses that feature. A workplace-distance check at punch time can avoid the complexity of continuous background tracking; Android distinguishes foreground location from background access and geofencing. developer.android.com
+
+Treat poor GPS accuracy as a specific condition with a retry or review route. Do not automatically mark someone absent because the phone cannot obtain an accurate location indoors.
+
+Calculate work time from accepted events:
+Net work time = completed work intervals − unpaid break intervals
+
+For example, 09:00–18:00 with a 30-minute unpaid break = 8 hours 30 minutes.
+
+The app’s running timer is a display. Stored timestamps and backend calculations remain authoritative.
+
+9. Build the Android app screen by screen
+
+Follow this order:
+Order	Screen	Behaviour to implement
+1	Activation/login	Email OTP, device registration and fingerprint flow
+2	Home	Employee details, assigned shift and current attendance status
+3	Check-in	Location permission, verification, submission and confirmation
+4	Active shift	Work timer, activity history and break action
+5	Break	Start, active break and resume
+6	Check-out	Review work summary and confirm
+7	Attendance history	Calendar, daily events and exceptions
+8	My requests	Leave and correction request status
+9	Request forms	Validations, attachments and submission
+10	Profile/roster	Employee details, schedule, support and sign-out
+
+
+For each screen, implement loading, empty, success and failure states.
+
+For the first release, I recommend online attendance submission. If you later support offline punches, display them as Pending sync until the backend validates them; define how delayed submissions will be reviewed.
+
+10. Build the HR/Admin web portal
+
+The HR portal needs additional screens beyond the employee designs we have already created.
+Web screen	Main functions
+Dashboard	Present, absent, late, on leave, open shifts and pending approvals
+Employee directory	Search, add, edit, activate/deactivate and bulk import
+Employee profile	Assign manager, department, workplace and policies
+Workplace setup	Configure sites and allowed attendance boundaries
+Shift setup	Create shift templates and attendance rules
+Roster planner	Assign shifts, weekly offs and publish schedules
+Live attendance	Review check-ins, breaks and open sessions
+Attendance review	Examine missing punches and exceptions
+Leave approvals	Review dates, balance and decisions
+Correction approvals	Compare original events with requested adjustments
+Reports	Filter, export and finalize attendance periods
+Access/settings	Roles, device resets, policies and audit logs
+
+
+For bulk imports, provide upload → validation preview → confirm import → result summary. Show rejected rows and reasons before writing changes.
+
+Restrict managers to their assigned teams. Restrict HR access by organizational scope where necessary.
+
+11. Add notifications and reporting
+
+Create notifications for:
+- Published or changed shifts.
+- Missing check-in/out reminders.
+- Leave and correction decisions.
+- Pending manager approvals.
+- Device registration or reset.
+Store notifications in the application so employees can still review them if a push message is missed. Firebase Cloud Messaging is an option for Android push delivery. firebase.google.com
+
+Start with five reports:
+Report	Main contents
+Daily attendance	Shift, first check-in, final check-out and attendance status
+Monthly employee summary	Present, absent, leave, weekly off and exceptions
+Late/early report	Actual events compared with assigned shift rules
+Work-hours report	Gross time, paid/unpaid breaks and net time
+Pending exceptions	Missing punches and unresolved requests
+
+
+Generate reports from the same backend rules used by the app. This prevents different totals appearing in Android, the HR portal and Excel exports.
+
+12. Test complete business scenarios
+
+Test real workflows, not only individual screens.
+Scenario	Expected result
+Wrong, expired or reused OTP	Login rejected with a clear message
+Unregistered/revoked device	Registration or recovery required
+Deactivated employee	Existing access revoked and new attendance blocked
+Double tap or network retry	One accepted attendance event
+Check-out without check-in	Rejected with a correction route
+Break started twice	Second action rejected
+App closed during work	Correct status restored from backend
+Night shift crosses midnight	One correctly assigned attendance session
+Poor GPS/outside workplace	Configured retry or review behaviour
+Manager opens another team’s record	Access denied
+HR approves a correction	Original record retained; totals recalculated
+Two managers act simultaneously	Only one valid final decision
+Database restored from backup	Records and attachments recover successfully
+
+
+For stronger app/device checks, evaluate Play Integrity as an additional signal. It helps the backend assess genuine app/device interactions; it should not be treated as proof of the employee’s identity or physical location. developer.android.com
+
+13. Deploy the system
+
+If you use your office server, the deployment should include:
+- HR website.
+- Backend API.
+- PostgreSQL database.
+- Email/notification worker.
+- Protected attachment storage.
+- HTTPS, monitoring and automated backups.
+Employees using mobile data need a reachable HTTPS API. Your IMS team must decide whether access will use an approved public endpoint or a company VPN.
+
+Keep the database on a private network. Store credentials in server-side configuration, and keep OTPs, access tokens and sensitive employee details out of application logs.
+
+Give the IMS team a deployment package containing installation instructions, configuration examples, database migrations, backup/restore steps and a rollback procedure.
+
+14. Run a pilot before company-wide rollout
+
+Start with a small group covering different phones, workplaces and shifts.
+
+During the pilot:
+1. Run the app alongside the current attendance process.
+2. Compare punches, work hours and exception handling.
+3. Ask employees and HR to test requests and approvals.
+4. Correct calculation and usability problems.
+5. Confirm the support and device-recovery process.
+6. Obtain HR sign-off before making the system authoritative.
+15. Use Cursor in controlled development phases
+
+Avoid asking Cursor to build the entire system in one prompt. Give it one reviewable module at a time.
+Phase	What to ask Cursor to deliver
+Foundation	Repository structure, local setup, database migrations and API documentation
+Identity	Accounts, permissions, OTP challenges, sessions and device registration
+Administration	Employee, workplace and shift management
+Attendance	Event recording, state transitions, calculations and meaningful tests
+Android	Connect each designed screen to the completed API
+Requests	Leave, corrections, approval rules and audit history
+Reporting	Daily/monthly reports and exports
+Release	Deployment configuration, monitoring and recovery documentation
+
+
+For every phase, provide the agreed requirements, acceptance criteria and sample scenarios. Review the database changes and test results before moving forward.
+
+The first milestone should be one complete working journey: HR creates an employee and assigns a shift → employee activates the app and checks in → HR sees the record → employee checks out → both see the same calculated hours. Once that works reliably, add breaks, requests, roster management and reports.

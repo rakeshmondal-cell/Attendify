@@ -1,0 +1,1351 @@
+{
+  "source": "employee list.xlsx",
+  "importedAtHint": "MSR employee roster",
+  "employees": [
+    {
+      "employeeCode": "MSR158",
+      "fullName": "Badal Mondol",
+      "email": "badal_mondal@msrlimited.com",
+      "phone": "9831766546",
+      "department": "ADMINISTRATION",
+      "designation": "Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR152",
+      "fullName": "Sarit Kanti Bhattacharya",
+      "email": "sarit_bhattacharya@msrlimited.com",
+      "phone": "9123320963",
+      "department": "IT JAVA",
+      "designation": "Associate Tech Lead Project Lead",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR155",
+      "fullName": "Sandip Mukherjee",
+      "email": "sandip_mukherjee@msrlimited.com",
+      "phone": "9051058000",
+      "department": "IMS HOD",
+      "designation": "Senior Manager IMS",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR161",
+      "fullName": "Subir Kumar Dutta",
+      "email": "subir_dutta@msrlimited.com",
+      "phone": "9231877509",
+      "department": "Finance and Accounts",
+      "designation": "Head of Finance",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR251",
+      "fullName": "Pankaj Nath",
+      "email": "pankaj_nath@msrlimited.com",
+      "phone": "9933354427",
+      "department": "Smartler",
+      "designation": "Product Head",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR270",
+      "fullName": "Satrajit Chakraborty",
+      "email": "satrajit_chakraborty@msrlimited.com",
+      "phone": "9830217060",
+      "department": "Solution Delivery",
+      "designation": "Head Solution Delivery",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR299",
+      "fullName": "Anil Sammangi",
+      "email": "anil_sammangi@msrlimited.com",
+      "phone": "9704315821",
+      "department": "Smartler_FE",
+      "designation": "Assitant Manager",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR358",
+      "fullName": "Suman Dutta",
+      "email": "suman_dutta@msrlimited.com",
+      "phone": "9830573961",
+      "department": "IT HOD",
+      "designation": "Programme Manager",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR443",
+      "fullName": "Joydeep Roy",
+      "email": "joydeep_roy@msrlimited.com",
+      "phone": "9830044553",
+      "department": "Smartler HOD",
+      "designation": "Operation Head",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR466",
+      "fullName": "Toofan Singh Manhas",
+      "email": "ts_manhas@msrlimited.com",
+      "phone": "9810940928",
+      "department": "PROJECT",
+      "designation": "Associate Project Analysis Lead",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR481",
+      "fullName": "Kaushik Modak",
+      "email": "kaushik_modak@msrlimited.com",
+      "phone": "6291834287",
+      "department": "IMS",
+      "designation": "Assistant Manager IMS",
+      "salutation": "Mr."
+    },
+    {
+      "employeeCode": "MSR520",
+      "fullName": "Avijit Kar",
+      "email": "avijit_kar@msrlimited.com",
+      "phone": "8900335918",
+      "department": "Solution Delivery",
+      "designation": "Business Manager",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR530",
+      "fullName": "Chiranjit Das",
+      "email": "chiranjit_das@msrlimited.com",
+      "phone": "9051317020",
+      "department": "PROJECT HOD",
+      "designation": "Project Head",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR543",
+      "fullName": "Md. Faisal",
+      "email": "md_faisal@msrlimited.com",
+      "phone": "8802251963",
+      "department": "PROJECT",
+      "designation": "Sr_System Administrator_IMS",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR561",
+      "fullName": "Jayanta Bose",
+      "email": "jayanta_bose@msrlimited.com",
+      "phone": "9051368322",
+      "department": "PROJECT",
+      "designation": "Project Material Adminitrator",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR598",
+      "fullName": "Kiran Tarafder",
+      "email": "kiran_tarafder@msrlimited.com",
+      "phone": "8158098897",
+      "department": "IT JAVA",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR667",
+      "fullName": "Rajani Das",
+      "email": "rajani_das@msrlimited.com",
+      "phone": "8981683187",
+      "department": "Electronics",
+      "designation": "Electronics Engineer",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR677",
+      "fullName": "Jayanta Garai",
+      "email": "jayanta_garai@msrlimited.com",
+      "phone": "9972651751",
+      "department": "EDI",
+      "designation": "Lead Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR707",
+      "fullName": "Swapna Pal",
+      "email": "swapna_pal@msrlimited.com",
+      "phone": "8343012755",
+      "department": "EDI",
+      "designation": "Senior Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR745",
+      "fullName": "Ankita Sarkar",
+      "email": "ankita_sarkar@msrlimited.com",
+      "phone": "8240233145",
+      "department": "Solution Delivery",
+      "designation": "Business Analyst",
+      "salutation": "Ms."
+    },
+    {
+      "employeeCode": "MSR748",
+      "fullName": "Akash Kumar",
+      "email": "akash_kumar@msrlimited.com",
+      "phone": "9911700781",
+      "department": "Smartler_FE",
+      "designation": "System Administrator",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR749",
+      "fullName": "Gaurav Dey",
+      "email": "gaurav_dey@msrlimited.com",
+      "phone": "7980228160",
+      "department": "Technical Service Desk",
+      "designation": "Assistant Manager Technical Service Desk",
+      "salutation": "Mr."
+    },
+    {
+      "employeeCode": "MSR753",
+      "fullName": "Ajay Kumar",
+      "email": "ajay_kumar@msrlimited.com",
+      "phone": "8383955683",
+      "department": "Smartler_FE",
+      "designation": "System Administrator",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR751",
+      "fullName": "Madhubanti Chatterjee",
+      "email": "madhubanti_chatterjee@msrlimited.com",
+      "phone": "9163150994",
+      "department": "EDI",
+      "designation": "Lead Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR756",
+      "fullName": "Debolina Kundu",
+      "email": "debolina_kundu@msrlimited.com",
+      "phone": "8250309572",
+      "department": "EDI",
+      "designation": "Senior Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR766",
+      "fullName": "Niraj Kumar Dubey",
+      "email": "niraj_dubey@msrlimited.com",
+      "phone": "9163331445",
+      "department": "IMS",
+      "designation": "Assistant Manager IMS",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR770",
+      "fullName": "Sunil R. Kurtakoti",
+      "email": "sunil_kurtakoti@msrlimited.com",
+      "phone": "8884068614",
+      "department": "Smartler_FE",
+      "designation": "Senior System Administrator",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR775",
+      "fullName": "Debashis Das",
+      "email": "debashis_das@msrlimited.com",
+      "phone": "8820674959",
+      "department": "IT TESTER",
+      "designation": "Software Test Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR776",
+      "fullName": "Mir Tohid Ali",
+      "email": "tohid_ali@msrlimited.com",
+      "phone": "7377798668",
+      "department": "Finance and Accounts",
+      "designation": "Project Head_Sri Lanka",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR778",
+      "fullName": "Kaushik Roy",
+      "email": "kaushik_roy@msrlimited.com",
+      "phone": "9635567015",
+      "department": "Solution Delivery",
+      "designation": "Senior Business Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR800",
+      "fullName": "Aditya Mazumdar",
+      "email": "aditya_mazumdar@msrlimited.com",
+      "phone": "9511819781",
+      "department": "Technical Service Desk",
+      "designation": "Technical Service Desk Team Lead",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR802",
+      "fullName": "Arun Kumar",
+      "email": "arun_kumar@msrlimited.com",
+      "phone": "8557872191",
+      "department": "Smartler_FE",
+      "designation": "System Administrator",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR804",
+      "fullName": "Arnab Kundu",
+      "email": "arnab_kundu@msrlimited.com",
+      "phone": "9038280638",
+      "department": "Finance and Accounts",
+      "designation": "Senior Executive_Accounts and Finance",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR806",
+      "fullName": "Vijay Nath Tiwari",
+      "email": "vijay_tiwari@msrlimited.com",
+      "phone": "9836796589",
+      "department": "IMS",
+      "designation": "Assistant Manager IMS",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR807",
+      "fullName": "Bidhan Paramanik",
+      "email": "bidhan_paramanik@msrlimited.com",
+      "phone": "9547168958",
+      "department": "EDI",
+      "designation": "Senior Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR808",
+      "fullName": "Prashanta Acharjee",
+      "email": "prashanta_acharjee@msrlimited.com",
+      "phone": "6290819913",
+      "department": "IT JAVA",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR819",
+      "fullName": "Mahesh Prasad Mahalik",
+      "email": "mahesh_mahalik@msrlimited.com",
+      "phone": "8697917362",
+      "department": "IT IOS",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR823",
+      "fullName": "Somenath Das",
+      "email": "somenath_das@msrlimited.com",
+      "phone": "8420272314",
+      "department": "IT ANDROID",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR827",
+      "fullName": "Mithun Roy",
+      "email": "mithun_roy@msrlimited.com",
+      "phone": "7602700811",
+      "department": "HR",
+      "designation": "HR Manager",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR830",
+      "fullName": "Koushik Das Sharma",
+      "email": "koushik_dassharma@msrlimited.com",
+      "phone": "7384196597",
+      "department": "IT IOS",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR834",
+      "fullName": "Heena Parween",
+      "email": "heena_parween@msrlimited.com",
+      "phone": "7978773646",
+      "department": "EDI",
+      "designation": "Senior Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR837",
+      "fullName": "RAFTER JHA",
+      "email": "rafter_jha@msrlimited.com",
+      "phone": "7751064156",
+      "department": "Technical Service Desk",
+      "designation": "Assistant Manager Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR840",
+      "fullName": "Rohit Pandit",
+      "email": "rohit_pandit@msrlimited.com",
+      "phone": "8336007941",
+      "department": "Technical Service Desk",
+      "designation": "Assistant Manager Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR845",
+      "fullName": "ARUNPRAKASH KANNIAPPAN",
+      "email": "arun_prakash@msrlimited.com",
+      "phone": "9094154851",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR844",
+      "fullName": "Shubhadip Chakraborty",
+      "email": "shubhadip_chakraborty@msrlimited.com",
+      "phone": "8918747916",
+      "department": "Solution Delivery",
+      "designation": "Business Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR850",
+      "fullName": "Dhiresh Shridhar Kotharkar",
+      "email": "dhiresh_kotharkar@msrlimited.com",
+      "phone": "9480595436",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR853",
+      "fullName": "Ranjeet Kumar",
+      "email": "ranjeet_kumar@msrlimited.com",
+      "phone": "7739392031",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR858",
+      "fullName": "Subhadeep Ghosh",
+      "email": "subhadeep_ghosh@msrlimited.com",
+      "phone": "9932617157",
+      "department": "Solution Delivery",
+      "designation": "Business Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR861",
+      "fullName": "Barendranath naskar",
+      "email": "barendranath_naskar@msrlimited.com",
+      "phone": "7044734433",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR866",
+      "fullName": "Subhashish Das",
+      "email": "subhashish_das@msrlimited.com",
+      "phone": "7980682610",
+      "department": "IT TESTER",
+      "designation": "Software Test Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR868",
+      "fullName": "Mohammad Attaf",
+      "email": "mohammad_attaf@msrlimited.com",
+      "phone": "9007304666",
+      "department": "Technical Service Desk",
+      "designation": "Assistant Manager Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR939",
+      "fullName": "Bimal Bhowmick",
+      "email": "accounts@msrlimited.com",
+      "phone": null,
+      "department": "ADMINISTRATION",
+      "designation": "Support Staff",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR872",
+      "fullName": "Kallol Ghosh",
+      "email": "kallol_ghosh@msrlimited.com",
+      "phone": "8334003688",
+      "department": "PROJECT",
+      "designation": "Project Lead - IT And Projects",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR877",
+      "fullName": "Tanmoy Dutta",
+      "email": "tanmoy_dutta@msrlimited.com",
+      "phone": "9804123576",
+      "department": "PROJECT",
+      "designation": "Project Lead - IT And Projects",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR884",
+      "fullName": "Rahulkumar Manojbhai Pandya",
+      "email": "rahul_pandya@msrlimited.com",
+      "phone": "8866414110",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR889",
+      "fullName": "Rajhans Kumar",
+      "email": "rajhans_kumar@msrlimited.com",
+      "phone": "7992321968",
+      "department": "Electronics",
+      "designation": "Electronics Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR892",
+      "fullName": "Calliston Barbosa",
+      "email": "calliston_barbosa@msrlimited.com",
+      "phone": "8408065636",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR894",
+      "fullName": "Sujata Prasad",
+      "email": "sujata_prasad@msrlimited.com",
+      "phone": "8777487161",
+      "department": "PROJECT",
+      "designation": "Project Coordinator",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR896",
+      "fullName": "Anurag Bhattacharya",
+      "email": "anurag_bhattacharya@msrlimited.com",
+      "phone": "8509529429",
+      "department": "PROJECT",
+      "designation": "Business Development Manager",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR899",
+      "fullName": "Payel Paul",
+      "email": "payel_paul@msrlimited.com",
+      "phone": "7908097147",
+      "department": "IT ANDROID",
+      "designation": "Software Engineer",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR900",
+      "fullName": "Dipak Das",
+      "email": "dipak_das@msrlimited.com",
+      "phone": "9883215858",
+      "department": "Solution Delivery",
+      "designation": "Sr UI UX Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR902",
+      "fullName": "Vishal Maity",
+      "email": "vishal_maity@msrlimited.com",
+      "phone": "7980357261",
+      "department": "EDI",
+      "designation": "Senior Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR908",
+      "fullName": "Shubham Vig",
+      "email": "shubham_vig@msrlimited.com",
+      "phone": "8961748689",
+      "department": "EDI",
+      "designation": "Senior Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR909",
+      "fullName": "Prakash Palani",
+      "email": "prakash_p@msrlimited.com",
+      "phone": "8667516537",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR917",
+      "fullName": "Kaushik Das",
+      "email": "kaushik_das@msrlimited.com",
+      "phone": "8910423037",
+      "department": "EDI",
+      "designation": "Senior Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR926",
+      "fullName": "Priti Pramanik",
+      "email": "priti_pramanik@msrlimited.com",
+      "phone": "9382134866",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR927",
+      "fullName": "Sameer Suresh Salve",
+      "email": "sameer_salve@msrlimited.com",
+      "phone": "9702533031",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR931",
+      "fullName": "Abhay Negi",
+      "email": "abhay_negi@msrlimited.com",
+      "phone": "9311535103",
+      "department": "Solution Delivery",
+      "designation": "Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR930",
+      "fullName": "Abinaya J",
+      "email": "abinaya_j@msrlimited.com",
+      "phone": "9600497407",
+      "department": "IT TESTER",
+      "designation": "Software Test Engineer",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR932",
+      "fullName": "SHIKHA SRIVASTAVA",
+      "email": "shikha_srivastava@msrlimited.com",
+      "phone": "8920811813",
+      "department": "Solution Delivery",
+      "designation": "Project Implementation",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR933",
+      "fullName": "Gulshan Kumar Bairwa",
+      "email": "gulshan_bairwa@msrlimited.com",
+      "phone": "8929738010",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR942",
+      "fullName": "Devaraj T",
+      "email": "devaraj_t@msrlimited.com",
+      "phone": "9677674641",
+      "department": "Smartler_FE",
+      "designation": "Senior System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR949",
+      "fullName": "Sayani Nandi",
+      "email": "sayani_nandi@msrlimited.com",
+      "phone": "6290996046",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR956",
+      "fullName": "Jayanta Rajbanshi",
+      "email": "jayanta_rajbanshi@msrlimited.com",
+      "phone": "8240896687",
+      "department": "IT FRONTEND",
+      "designation": "UI Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR961",
+      "fullName": "Sayan Patra",
+      "email": "sayan_patra@msrlimited.com",
+      "phone": "9093623401",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR973",
+      "fullName": "Shaikh Mohd Adnan Tehseen",
+      "email": "shaikh_adnan@msrlimited.com",
+      "phone": "9867519162",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR977",
+      "fullName": "Abhishek Ajit Jaiswal",
+      "email": "abhishek_jaiswal@msrlimited.com",
+      "phone": "9321682857",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR978",
+      "fullName": "Jishan Khan",
+      "email": "jishan_khan@msrlimited.com",
+      "phone": "8104678445",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR979",
+      "fullName": "Suraj Sanjay Narkar",
+      "email": "suraj_narkar@msrlimited.com",
+      "phone": "7498766399",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR982",
+      "fullName": "Anindita Mondal",
+      "email": "anindita_mondal@msrlimited.com",
+      "phone": "6295479721",
+      "department": "HR",
+      "designation": "Talent Acquisition",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR948",
+      "fullName": "Neelam Karki",
+      "email": "neelam_karki2@msrlimited.com",
+      "phone": "7595025209",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR985",
+      "fullName": "Sandip Ghosh",
+      "email": "sandip_ghosh@msrlimited.com",
+      "phone": "8637538160",
+      "department": "Technical Service Desk",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR984",
+      "fullName": "Shivam Arora",
+      "email": "shivam_arora@msrlimited.com",
+      "phone": "8240741020",
+      "department": "Technical Service Desk",
+      "designation": "Technical Service Desk_Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR983",
+      "fullName": "Sourik Aich",
+      "email": "sourik_aich@msrlimited.com",
+      "phone": "8100318327",
+      "department": "Technical Service Desk",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR986",
+      "fullName": "Sagar Chowdhury",
+      "email": "sagar_chowdhury@msrlimited.com",
+      "phone": "9874466235",
+      "department": "MIS Smartler",
+      "designation": "MIS_Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR988",
+      "fullName": "Alok Ranjan Panda",
+      "email": "alokranjan@msrlimited.com",
+      "phone": "7008389070",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR989",
+      "fullName": "Sonu kumar Nagar",
+      "email": "sonu_nagar@msrlimited.com",
+      "phone": "8696085207",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR990",
+      "fullName": "Sk Arif Uddin",
+      "email": "sk_arifuddin@msrlimited.com",
+      "phone": "9038923174",
+      "department": "Solution Delivery",
+      "designation": "UI_UX Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR991",
+      "fullName": "Meghnath Das",
+      "email": "meghnath_das@msrlimited.com",
+      "phone": "8777713434",
+      "department": "ADMINISTRATION",
+      "designation": "Admin",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR994",
+      "fullName": "Sirattiya Bora",
+      "email": "sirattiya_bora@msrlimited.com",
+      "phone": "9953297650",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR998",
+      "fullName": "Deepam Kumar",
+      "email": "deepam_kumar@msrlimited.com",
+      "phone": "8210632077",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR997",
+      "fullName": "Hemanta Karmakar",
+      "email": "hemanta_karmakar@msrlimited.com",
+      "phone": "7602928235",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR996",
+      "fullName": "Mita Dutta",
+      "email": "mita_dutta@msrlimited.com",
+      "phone": "8250425499",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1001",
+      "fullName": "Diksha Singh",
+      "email": "diksha_singh@msrlimited.com",
+      "phone": "8617756311",
+      "department": "Technical Service Desk",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1000",
+      "fullName": "Oindrila Dey",
+      "email": "oindrila_dey@msrlimited.com",
+      "phone": "8584982354",
+      "department": "Technical Service Desk",
+      "designation": "Technical Service Desk_Executive",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1002",
+      "fullName": "Rakesh Mondal",
+      "email": "rakesh_mondal@msrlimited.com",
+      "phone": "8167330707",
+      "department": "MIS Smartler",
+      "designation": "MIS_Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1003",
+      "fullName": "Bratati Das",
+      "email": "bratati_das@msrlimited.com",
+      "phone": "6290156004",
+      "department": "Technical Service Desk",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1004",
+      "fullName": "Chandranil Bera Das",
+      "email": "chandranil_das@msrlimited.com",
+      "phone": "9064152398",
+      "department": "Technical Service Desk",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1007",
+      "fullName": "Rahul Sen",
+      "email": "rahul_sen@msrlimited.com",
+      "phone": "7061605378",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1008",
+      "fullName": "DEEPAK KUMAR",
+      "email": "deepak_kumar@msrlimited.com",
+      "phone": "8521608525",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1009",
+      "fullName": "AKSHAY KUMAR SINGH",
+      "email": "akshay_singh@msrlimited.com",
+      "phone": "7903707611",
+      "department": "IT TESTER",
+      "designation": "Software Test Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1012",
+      "fullName": "Debashis Dutta",
+      "email": "debasish_dutta@msrlimited.com",
+      "phone": "7903707611",
+      "department": "PROJECT",
+      "designation": "Assistant Lead - IT And Projects",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1014",
+      "fullName": "Aravinthan A",
+      "email": "aravinthan_a@msrlimited.com",
+      "phone": "7598727010",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1013",
+      "fullName": "Sivasakthivel S",
+      "email": "sivasakthivel_s@msrlimited.com",
+      "phone": "8524015985",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1015",
+      "fullName": "Sohini Nandi",
+      "email": "sohini_nandi@msrlimited.com",
+      "phone": "9432590309",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1018",
+      "fullName": "Morium Khatun",
+      "email": "morium_khatun@msrlimited.com",
+      "phone": "9382005761",
+      "department": "Technical Service Desk",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1019",
+      "fullName": "Maynak Koner",
+      "email": "maynak_koner@msrlimited.com",
+      "phone": "8116644788",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1020",
+      "fullName": "Shubham Pokhriyal",
+      "email": "shubham_pokhriyal@msrlimited.com",
+      "phone": "9625392257",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1021",
+      "fullName": "Gourav Majumder",
+      "email": "gourav_mazumder@msrlimited.com",
+      "phone": "8017506383",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1023",
+      "fullName": "Sarfraz Shadman",
+      "email": "sarfraz_shadman@msrlimited.com",
+      "phone": "7759069083",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1025",
+      "fullName": "Manish Verma",
+      "email": "manish_verma@msrlimited.com",
+      "phone": "8859023590",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1027",
+      "fullName": "Aditya Kumar",
+      "email": "aditya_kumar@msrlimited.com",
+      "phone": "7277309723",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1028",
+      "fullName": "shubhrajyoti Paul",
+      "email": "shubhrajyoti_paul@msrlimited.com",
+      "phone": "6291838893",
+      "department": "Finance and Accounts",
+      "designation": "Senior Executive_Accounts and Finance",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1031",
+      "fullName": "Sirirat Mondal",
+      "email": "sirirat_mondal@msrlimited.com",
+      "phone": "8777736581",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1034",
+      "fullName": "Rushikesh Shinde",
+      "email": "rushikesh_shinde@msrlimited.com",
+      "phone": "9545911216",
+      "department": "IT JAVA",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1035",
+      "fullName": "Eshita Chowdhury",
+      "email": "eshita_chowdhury@msrlimited.com",
+      "phone": "7980430867",
+      "department": "MIS Smartler",
+      "designation": "Data Entry Associate",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1037",
+      "fullName": "Prabhat Kumar Singh",
+      "email": "prabhat_singh@msrlimited.com",
+      "phone": "7004269294",
+      "department": "IT TESTER",
+      "designation": "Software Test Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1036",
+      "fullName": "Shirsendu Basak",
+      "email": "shirsendu_basak@msrlimited.com",
+      "phone": "9883574577",
+      "department": "MIS Smartler",
+      "designation": "Data Entry Associate",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1041",
+      "fullName": "Md Ubesh",
+      "email": "md_ubesh@msrlimited.com",
+      "phone": "8595666647",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1043",
+      "fullName": "Abhishek Manna",
+      "email": "abhishek_manna@msrlimited.com",
+      "phone": "9874747775",
+      "department": "IMS",
+      "designation": "Senior Network Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1044",
+      "fullName": "Iyyappan Naveen",
+      "email": "iyyappan_naveen@msrlimited.com",
+      "phone": "8680847105",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1045",
+      "fullName": "Indrajit Dutta",
+      "email": "indrajit_dutta@msrlimited.com",
+      "phone": "9748584198",
+      "department": "Technical Service Desk",
+      "designation": "Technical Service Desk Team Lead",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1046",
+      "fullName": "Sayan Naskar",
+      "email": "sayan_naskar@msrlimited.com",
+      "phone": "7605856618",
+      "department": "Smartler L0",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1049",
+      "fullName": "Perala Santosh",
+      "email": "perala_santhosh2@msrlimited.com",
+      "phone": "8688403840",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1051",
+      "fullName": "Priyanka Roy",
+      "email": "priyanka_roy@msrlimited.com",
+      "phone": "9679826854",
+      "department": "Smartler L0",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MS."
+    },
+    {
+      "employeeCode": "MSR1050",
+      "fullName": "Rahul Kumar Agarwal",
+      "email": "rahul_agarwal@msrlimited.com",
+      "phone": "8709763847",
+      "department": "IT JAVA",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1052",
+      "fullName": "Sourav Kumar Barik",
+      "email": "sourav_barik@msrlimited.com",
+      "phone": "8918499751",
+      "department": "Technical Service Desk",
+      "designation": "Executive_Technical Service Desk",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1053",
+      "fullName": "Sanjit Dan",
+      "email": "sanjit_dan@msrlimited.com",
+      "phone": "7431977515",
+      "department": "IT JAVA",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1055",
+      "fullName": "Ankit Arya",
+      "email": "ankit_arya@msrlimited.com",
+      "phone": "7302604447",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1056",
+      "fullName": "Frexin Jepasingh",
+      "email": "frexin_jepasingh@msrlimited.com",
+      "phone": "9443558643",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1054",
+      "fullName": "Sriman Bera",
+      "email": "sriman_bera@msrlimited.com",
+      "phone": "8013324316",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1058",
+      "fullName": "Sukura Naga Sai Srinivasu",
+      "email": "sukura_srinivasu@msrlimited.com",
+      "phone": "8008380178",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1059",
+      "fullName": "Vimal Raj",
+      "email": "vimal_raj@msrlimited.com",
+      "phone": "9944519933",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1060",
+      "fullName": "Amit Rohit Chauhan",
+      "email": "amit_chauhan@msrlimited.com",
+      "phone": "6302495854",
+      "department": "Smartler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1062",
+      "fullName": "Purnendu Samanta",
+      "email": "purnendu_samanta@msrlimited.com",
+      "phone": "9614472290",
+      "department": "IT Android",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1061",
+      "fullName": "Sarwar Nawaz",
+      "email": "sarwar_nawaz@msrlimited.com",
+      "phone": "7003437477",
+      "department": "IT Java",
+      "designation": "Software Engineer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1064",
+      "fullName": "Saurabh Burane",
+      "email": "saurabh_burane@msrlimited.com",
+      "phone": "9022414195",
+      "department": "Samrtler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1066",
+      "fullName": "Lokesh Choudhary",
+      "email": "lokesh_choudhary@msrlimited.com",
+      "phone": "7073631389",
+      "department": "Samrtler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1067",
+      "fullName": "Dipak Kadukar",
+      "email": "dipak_kadukar@msrlimited.com",
+      "phone": "9307870868",
+      "department": "PROJECT",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1068",
+      "fullName": "Subhayan Mitra",
+      "email": "subhayan_mitra@msrlimited.com",
+      "phone": "7439766705",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1069",
+      "fullName": "Sayantan Ghosh",
+      "email": "sayantan_ghosh@msrlimited.com",
+      "phone": "8240710948",
+      "department": "PROJECT",
+      "designation": "Quality Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1070",
+      "fullName": "Kushal Sardar",
+      "email": "kushal_sardar@msrlimited.com",
+      "phone": "9123325535",
+      "department": "Electronics",
+      "designation": "Executive_Project Implementation",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1071",
+      "fullName": "Aranya Dana",
+      "email": "aranya_dana@msrlimited.com",
+      "phone": "9641485623",
+      "department": "IT FRONTEND",
+      "designation": "Front End Developer",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1072",
+      "fullName": "Mohd Amjad",
+      "email": "md_amjad@msrlimited.com",
+      "phone": "7991589200",
+      "department": "Samrtler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1075",
+      "fullName": "Rahul Ghosh",
+      "email": "rahul_ghosh@msrlimited.com",
+      "phone": "7003283099",
+      "department": "EDI",
+      "designation": "Research Analyst",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR1076",
+      "fullName": "Shafnas KP",
+      "email": "shafnas@msrlimited.com",
+      "phone": "7025393793",
+      "department": "Samrtler_FE",
+      "designation": "System Support Executive",
+      "salutation": "MR."
+    },
+    {
+      "employeeCode": "MSR302",
+      "fullName": "Shamit Dutta",
+      "email": "shamit@msrlimited.com",
+      "phone": null,
+      "department": "CEO",
+      "designation": "CEO",
+      "salutation": "MR."
+    }
+  ],
+  "skipped": [
+    {
+      "employeeCode": "MSR240",
+      "fullName": "Sumita Mukherjee",
+      "email": "",
+      "phone": "9007590157",
+      "department": "ADMINISTRATION",
+      "designation": "Support Executive",
+      "salutation": "MS.",
+      "reason": "MISSING_EMAIL"
+    },
+    {
+      "employeeCode": "MSR941",
+      "fullName": "Kajal Tiwari",
+      "email": "accounts@msrlimited.com",
+      "phone": "9903938054",
+      "department": "ADMINISTRATION",
+      "designation": "Support Staff",
+      "salutation": "MS.",
+      "reason": "DUPLICATE_EMAIL"
+    }
+  ]
+}
