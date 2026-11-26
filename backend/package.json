@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --import tsx --watch src/server.ts",
     "start": "node --import tsx src/server.ts",
-    "test": "node --import tsx --test src/time.test.ts src/passcode.test.ts src/workListStatus.test.ts",
+    "test": "node --import tsx --test src/time.test.ts src/passcode.test.ts src/workListStatus.test.ts src/pmIntegration.test.ts",
     "journey": "node --import tsx scripts/journey.ts",
     "import:employees": "node --import tsx scripts/import-employees.ts"
   },

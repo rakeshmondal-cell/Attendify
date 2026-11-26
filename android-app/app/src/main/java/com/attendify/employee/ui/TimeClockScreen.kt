@@ -26,8 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Coffee
-import androidx.compose.material.icons.filled.FreeBreakfast
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Timer
@@ -69,7 +67,6 @@ import java.util.TimeZone
 fun TimeClockScreen(
     state: UiState,
     viewModel: AttendifyViewModel,
-    onTakeBreak: () -> Unit = {},
 ) {
     var showCheckoutSheet by remember { mutableStateOf(false) }
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -81,16 +78,8 @@ fun TimeClockScreen(
     }
 
     val attendance = state.attendance
-    val openBreakMs = if (state.onBreak) {
-        nowMs - (state.breakStartedAtMs ?: nowMs)
-    } else {
-        0L
-    }
-    val totalBreakMs = state.totalBreakMs + openBreakMs
-    val elapsedWorkMs = workElapsedMs(attendance.checkInAt, nowMs, totalBreakMs, attendance.status == "CLOSED", attendance.netMinutes)
+    val elapsedWorkMs = workElapsedMs(attendance.checkInAt, nowMs, attendance.status == "CLOSED", attendance.netMinutes)
     val timerLabel = formatHms(elapsedWorkMs)
-    val breakLabel = formatHm(totalBreakMs)
-    val shiftEndLabel = formatShiftEnd(attendance.shiftEnd)
     val initial = state.firstName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     val canCheckout = !state.busy && state.locationReady && attendance.status == "OPEN"
 
@@ -146,7 +135,7 @@ fun TimeClockScreen(
                 Column(Modifier.weight(1f)) {
                     Text(state.firstName.ifBlank { "Employee" }, color = AttendifyIndigo, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                     Text(
-                        listOfNotNull(attendance.workplaceName, attendance.shiftWindow).joinToString(" | "),
+                        attendance.workplaceName ?: "Workplace",
                         color = AttendifyMuted,
                         fontSize = 13.sp,
                         maxLines = 1,
@@ -181,7 +170,7 @@ fun TimeClockScreen(
                         Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF7CFFB2)))
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            if (attendance.status == "CLOSED") "Checked out" else if (state.onBreak) "On break" else "Checked in",
+                            if (attendance.status == "CLOSED") "Checked out" else "Checked in",
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
@@ -204,21 +193,6 @@ fun TimeClockScreen(
                 )
             }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatMiniCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.FreeBreakfast,
-                    title = "Break time",
-                    value = breakLabel,
-                )
-                StatMiniCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.AccessTime,
-                    title = "Shift ends",
-                    value = shiftEndLabel,
-                )
-            }
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,12 +212,6 @@ fun TimeClockScreen(
             }
 
             if (attendance.status == "OPEN") {
-                OutlinedActionButton(
-                    label = "Take a break",
-                    icon = Icons.Default.Coffee,
-                    onClick = onTakeBreak,
-                    enabled = !state.busy && !state.onBreak,
-                )
                 FilledActionButton(
                     label = "Check out",
                     icon = Icons.AutoMirrored.Filled.Logout,
@@ -266,7 +234,6 @@ fun TimeClockScreen(
             CheckoutSheet(
                 state = state,
                 workLabel = formatDurationWords(elapsedWorkMs),
-                breakLabel = breakLabel,
                 estimatedOut = SimpleDateFormat("hh:mm a", Locale.US).format(Date(nowMs)).uppercase(Locale.US),
                 onDismiss = { showCheckoutSheet = false },
                 onConfirm = {
@@ -282,30 +249,6 @@ fun TimeClockScreen(
                 onGoBack = viewModel::dismissWorkListReminder,
             )
         }
-    }
-}
-
-@Composable
-private fun StatMiniCard(modifier: Modifier, icon: ImageVector, title: String, value: String) {
-    Column(
-        modifier = modifier
-            .shadow(6.dp, RoundedCornerShape(18.dp), ambientColor = AttendifyCardShadow, spotColor = AttendifyCardShadow)
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White)
-            .padding(14.dp),
-    ) {
-        Box(
-            Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(AttendifyPurpleSoft),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, null, tint = AttendifyPurple, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(title, color = AttendifyMuted, fontSize = 12.sp)
-        Text(value, color = AttendifyIndigo, fontWeight = FontWeight.Bold, fontSize = 20.sp)
     }
 }
 
@@ -471,7 +414,6 @@ private fun WorkListReminderSheet(
 private fun CheckoutSheet(
     state: UiState,
     workLabel: String,
-    breakLabel: String,
     estimatedOut: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
@@ -521,7 +463,6 @@ private fun CheckoutSheet(
             SummaryRow(Icons.AutoMirrored.Filled.Login, "Check-in", state.attendance.checkInLabel ?: "--")
             SummaryRow(Icons.AutoMirrored.Filled.Logout, "Check-out", estimatedOut)
             SummaryRow(Icons.Default.Timer, "Work time", workLabel)
-            SummaryRow(Icons.Default.FreeBreakfast, "Breaks", breakLabel)
             Spacer(Modifier.height(18.dp))
             FilledActionButton("Confirm check-out", Icons.AutoMirrored.Filled.Logout, onConfirm, enabled = !state.busy && state.locationReady)
             Spacer(Modifier.height(10.dp))
@@ -556,13 +497,12 @@ private fun SummaryRow(icon: ImageVector, label: String, value: String) {
 private fun workElapsedMs(
     checkInAt: String?,
     nowMs: Long,
-    totalBreakMs: Long,
     closed: Boolean,
     netMinutes: Int?,
 ): Long {
     if (closed && netMinutes != null) return netMinutes * 60_000L
     val start = parseInstantMs(checkInAt) ?: return 0L
-    return (nowMs - start - totalBreakMs).coerceAtLeast(0L)
+    return (nowMs - start).coerceAtLeast(0L)
 }
 
 private fun parseInstantMs(value: String?): Long? {
@@ -592,33 +532,11 @@ private fun formatHms(ms: Long): String {
     return "%02d:%02d:%02d".format(h, m, s)
 }
 
-private fun formatHm(ms: Long): String {
-    val totalMin = (ms / 60_000).toInt().coerceAtLeast(0)
-    val h = totalMin / 60
-    val m = totalMin % 60
-    return "%02d:%02d".format(h, m)
-}
-
 private fun formatDurationWords(ms: Long): String {
     val totalMin = (ms / 60_000).toInt().coerceAtLeast(0)
     val h = totalMin / 60
     val m = totalMin % 60
     return "${h}h ${m}m"
-}
-
-private fun formatShiftEnd(shiftEnd: String?): String {
-    if (shiftEnd.isNullOrBlank()) return "--"
-    val parts = shiftEnd.split(":")
-    if (parts.size < 2) return shiftEnd
-    val hour = parts[0].toIntOrNull() ?: return shiftEnd
-    val minute = parts[1].toIntOrNull() ?: 0
-    val amPm = if (hour >= 12) "PM" else "AM"
-    val h12 = when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-    }
-    return "%02d:%02d %s".format(h12, minute, amPm)
 }
 
 private fun todayLabel(): String = SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date())

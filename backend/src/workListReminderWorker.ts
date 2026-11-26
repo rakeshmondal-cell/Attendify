@@ -100,6 +100,24 @@ async function processReminder(row: Record<string, unknown>): Promise<void> {
     return;
   }
 
+  const localProgress = await one(
+    "SELECT employee_id FROM work_progress_updates WHERE employee_id = ? AND work_date = ?",
+    employeeId,
+    workDate,
+  );
+  if (localProgress) {
+    await markStatus(id, "SKIPPED", { skipReason: "ATTENDIFY_APP_PROGRESS" });
+    await run(
+      `INSERT INTO audit_logs (id, actor_user_id, action, entity_type, entity_id, detail, created_at)
+       VALUES (?, NULL, 'WORK_LIST_SKIP', 'work_list_reminder', ?, ?, ?)`,
+      randomUUID(),
+      id,
+      "ATTENDIFY_APP_PROGRESS",
+      nowIso(),
+    );
+    return;
+  }
+
   const evaluated = await evaluateWorkListForEmployee({
     workDate,
     employeeEmail: text(employee, "email"),

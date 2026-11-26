@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>[DUMMY] Project Control</title>
+  <style>
+    :root {
+      --bg: #f4f2fb;
+      --card: #fff;
+      --ink: #1e1b4b;
+      --muted: #6b6685;
+      --accent: #6c5ce7;
+      --warn: #b45309;
+      --ok: #15803d;
+      --line: #e8e4f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(180deg, #efeaff 0%, var(--bg) 40%, #f8f7fc 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    header {
+      padding: 18px 20px;
+      background: #5b4bd6;
+      color: #fff;
+    }
+    header .tag {
+      display: inline-block;
+      background: #fbbf24;
+      color: #78350f;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    h1 { margin: 0 0 6px; font-size: 22px; }
+    .sub { opacity: 0.9; font-size: 13px; }
+    main { padding: 16px; max-width: 720px; margin: 0 auto; }
+    .banner {
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: var(--warn);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .card h2 { margin: 0 0 8px; font-size: 16px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .task {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .task:first-of-type { border-top: none; }
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+      height: fit-content;
+    }
+    .open { background: #ede9fe; color: var(--accent); }
+    .done { background: #dcfce7; color: var(--ok); }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button.secondary {
+      background: #fff;
+      color: var(--accent);
+      border: 1.5px solid #c4b5fd;
+      margin-top: 10px;
+    }
+    #toast {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #dcfce7;
+      color: var(--ok);
+      font-size: 13px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="tag">TEMPORARY DUMMY · DELETE AFTER FINAL DEVELOPMENT</div>
+    <h1>Project Control (demo)</h1>
+    <div class="sub">Fake web app for Attendify laptop / emulator testing</div>
+  </header>
+  <main>
+    <div class="banner">
+      This is not the real Project Control portal. It only exists so you can click
+      <b>Open Project Control</b> during development. Remove
+      <code>dummy-project-control.html</code> and turn off
+      <code>ATTENDIFY_DUMMY_PM</code> before go-live.
+    </div>
+
+    <div class="card">
+      <h2>[DUMMY] Attendify Demo Project</h2>
+      <p class="muted">Allocation 60% · Active · Work date <span id="workDate">today</span></p>
+      <div class="task"><span>Review attendance check-in flow</span><span class="badge open">In progress</span></div>
+      <div class="task"><span>Update Project Control progress for today</span><span class="badge open">Open</span></div>
+      <div class="task"><span>Confirm manager daily report rows</span><span class="badge done">Done</span></div>
+    </div>
+
+    <div class="card">
+      <h2>[DUMMY] Internal QA Sandbox</h2>
+      <p class="muted">Allocation 40% · Active</p>
+      <div class="task"><span>Smoke-test Work tab refresh</span><span class="badge open">Open</span></div>
+      <div class="task"><span>Archive this dummy project after go-live</span><span class="badge open">Open</span></div>
+    </div>
+
+    <button id="markBtn" type="button">Mark progress updated (demo)</button>
+    <button class="secondary" type="button" onclick="history.back()">Back</button>
+    <div id="toast">Demo progress saved locally. Real PM sync is not connected here.</div>
+  </main>
+  <script>
+    document.getElementById("workDate").textContent = new Date().toISOString().slice(0, 10);
+    document.getElementById("markBtn").addEventListener("click", function () {
+      localStorage.setItem("attendify_dummy_pm_updated", new Date().toISOString());
+      document.getElementById("toast").style.display = "block";
+    });
+  </script>
+</body>
+</html>

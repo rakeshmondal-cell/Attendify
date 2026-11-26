@@ -1,5 +1,6 @@
 package com.attendify.employee.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -72,6 +73,7 @@ private val TodayBg = Color(0xFFEDEBFF)
 fun ProfileHubScreen(state: UiState, viewModel: AttendifyViewModel) {
     var showRoster by remember { mutableStateOf(false) }
     var showChangePasscode by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(false) }
     when {
         showChangePasscode -> ChangeAppPasscodeScreen(
             state = state,
@@ -86,9 +88,14 @@ fun ProfileHubScreen(state: UiState, viewModel: AttendifyViewModel) {
             viewModel = viewModel,
             onBack = { showRoster = false },
         )
+        showHelp -> HelpSupportScreen(
+            state = state,
+            onBack = { showHelp = false },
+        )
         else -> MyProfileScreen(
             state = state,
             onOpenRoster = { showRoster = true },
+            onOpenHelp = { showHelp = true },
             onChangePasscode = {
                 viewModel.clearChangePasscodeFields(clearFeedback = true)
                 showChangePasscode = true
@@ -102,6 +109,7 @@ fun ProfileHubScreen(state: UiState, viewModel: AttendifyViewModel) {
 private fun MyProfileScreen(
     state: UiState,
     onOpenRoster: () -> Unit,
+    onOpenHelp: () -> Unit,
     onChangePasscode: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -170,8 +178,8 @@ private fun MyProfileScreen(
                 .padding(horizontal = 14.dp, vertical = 6.dp),
         ) {
             InfoRow(Icons.Default.Email, "Work email", state.email.ifBlank { "—" })
-            InfoRow(Icons.Default.Business, "Workplace", state.workplaceName ?: "Head Office")
-            InfoRow(Icons.Default.Groups, "Reporting manager", state.reportingManager ?: "Operations Manager", showDivider = false)
+            InfoRow(Icons.Default.Business, "Workplace", state.workplaceName ?: "—")
+            InfoRow(Icons.Default.Groups, "Reporting manager", state.reportingManager ?: "—", showDivider = false)
         }
 
         Column(
@@ -189,7 +197,7 @@ private fun MyProfileScreen(
                 onClick = { openNotificationsFromMenu(context) },
             )
             MenuRow(Icons.Default.Lock, "Change app passcode", onClick = onChangePasscode)
-            MenuRow(Icons.AutoMirrored.Filled.HelpOutline, "Help & support", onClick = {}, showDivider = false)
+            MenuRow(Icons.AutoMirrored.Filled.HelpOutline, "Help & support", onClick = onOpenHelp, showDivider = false)
         }
 
         Row(
@@ -214,6 +222,7 @@ private fun ChangeAppPasscodeScreen(
     viewModel: AttendifyViewModel,
     onBack: () -> Unit,
 ) {
+    BackHandler(onBack = onBack)
     val canSubmit = !state.busy &&
         state.changeCurrentPasscode.length >= 4 &&
         state.changeNewPasscode.length >= 6 &&
@@ -350,6 +359,7 @@ private fun ShiftRosterScreen(
     viewModel: AttendifyViewModel,
     onBack: () -> Unit,
 ) {
+    BackHandler(onBack = onBack)
     var weekStart by remember {
         mutableStateOf(state.rosterWeekStart ?: mondayOf(LocalDate.now()).toString())
     }
@@ -391,11 +401,6 @@ private fun ShiftRosterScreen(
                 .clip(RoundedCornerShape(14.dp))
                 .border(1.dp, Color(0xFFE4E1F0), RoundedCornerShape(14.dp))
                 .background(Color.White)
-                .clickable {
-                    // Jump to previous / next week via long-press style: tap cycles next week; hold not needed.
-                    // Use left/right by tapping edges conceptually: here advance one week on tap.
-                    weekStart = LocalDate.parse(weekStart).plusWeeks(1).toString()
-                }
                 .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -557,6 +562,71 @@ private fun MenuRow(icon: ImageVector, label: String, onClick: () -> Unit, showD
         if (showDivider) {
             Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFFF0EEF6)))
         }
+    }
+}
+
+@Composable
+private fun HelpSupportScreen(state: UiState, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
+    val manager = state.reportingManager?.takeIf { it.isNotBlank() } ?: "your reporting manager"
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AttendifyBackground)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(Modifier.fillMaxWidth()) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = AttendifyIndigo,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(24.dp)
+                    .clickable(onClick = onBack),
+            )
+            Text(
+                "Help & support",
+                color = AttendifyIndigo,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+        HelpBlock(
+            "Check in and check out",
+            "On Home, check in when you arrive and check out when you leave. You can check in only once each work day.",
+        )
+        HelpBlock(
+            "Work notes",
+            "Open Work, tap your project, then set Open, In progress, or Done. Each Save note is a new message for today. Done closes that project until you tap Reopen.",
+        )
+        HelpBlock(
+            "Leave",
+            "Leave is not applied from this app for now. Ask $manager or HR to record leave for you.",
+        )
+        HelpBlock(
+            "Who to contact",
+            "Ask $manager if a punch, leave request, or project update looks wrong. Your work email on this profile is ${state.email.ifBlank { "the address you signed in with" }}.",
+        )
+    }
+}
+
+@Composable
+private fun HelpBlock(title: String, body: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(title, color = AttendifyIndigo, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Text(body, color = AttendifyMuted, fontSize = 13.sp)
     }
 }
 

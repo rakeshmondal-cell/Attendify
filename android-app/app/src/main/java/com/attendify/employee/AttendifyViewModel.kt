@@ -21,6 +21,7 @@ import com.attendify.employee.data.ApiException
 import com.attendify.employee.data.AttendifyApi
 import com.attendify.employee.data.DeviceKeyInvalidatedException
 import com.attendify.employee.data.DeviceVault
+import com.attendify.employee.BuildConfig
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -92,7 +93,6 @@ data class HistoryDay(
     val checkInLabel: String? = null,
     val checkOutLabel: String? = null,
     val hoursLabel: String? = null,
-    val breaksLabel: String? = null,
 )
 
 data class HistorySummary(
@@ -176,13 +176,6 @@ data class UiState(
     val locationLatitude: Double? = null,
     val locationLongitude: Double? = null,
     val attendance: AttendanceUi = AttendanceUi(),
-    val onBreak: Boolean = false,
-    val breakStartedAtMs: Long? = null,
-    val breakPlannedEndMs: Long? = null,
-    val breakDurationMinutes: Int = 30,
-    val breakType: String = "Lunch",
-    val breakNote: String = "",
-    val totalBreakMs: Long = 0L,
     val activity: List<ActivityItem> = emptyList(),
     val historyMonth: String? = null,
     val historyDays: List<HistoryDay> = emptyList(),
@@ -229,6 +222,86 @@ data class UiState(
     val workListReminderVisible: Boolean = false,
     val workListReminderMessage: String? = null,
     val checkoutGateBusy: Boolean = false,
+    val projectsBusy: Boolean = false,
+    val projectsError: String? = null,
+    val projectsMessage: String? = null,
+    val projectsWriteEligible: Boolean = false,
+    val projectsWorkDate: String? = null,
+    val projectsProgressUpdated: Boolean = false,
+    val projectItems: List<ProjectItem> = emptyList(),
+    val projectTasks: List<ProjectTaskItem> = emptyList(),
+    /** Set after a project is added so the Work tab can open it. Cleared by the screen. */
+    val projectJustCreated: String? = null,
+    val reportBusy: Boolean = false,
+    val reportError: String? = null,
+    val reportMessage: String? = null,
+    val dailyReport: DailyPmReportUi? = null,
+    val weeklyReport: WeeklyPmReportUi? = null,
+)
+
+data class ProjectItem(
+    val name: String,
+    val taskCount: Int,
+    val openTaskCount: Int,
+)
+
+data class WorkNoteMessage(
+    val id: String,
+    val text: String,
+    val createdAt: String,
+)
+
+data class ProjectTaskItem(
+    val id: String?,
+    val title: String,
+    val status: String?,
+    val projectName: String?,
+    val dueDate: String?,
+    val workNote: String? = null,
+    val notes: List<WorkNoteMessage> = emptyList(),
+    val stillAssigned: Boolean? = null,
+    /** Added in Attendify and not yet confirmed by Project Control. */
+    val pendingPm: Boolean = false,
+)
+
+data class DailyPmReportRow(
+    val fullName: String,
+    val employeeCode: String,
+    val checkedIn: Boolean,
+    val sessionStatus: String,
+    val checkInLabel: String?,
+    val checkOutLabel: String?,
+    val pmUpdate: String,
+    val exception: String?,
+)
+
+data class DailyPmReportUi(
+    val workDateLabel: String,
+    val presentCount: Int,
+    val pmUpdatedCount: Int,
+    val presentNoUpdateCount: Int,
+    val rows: List<DailyPmReportRow>,
+)
+
+data class WeeklyPmReportEmployee(
+    val fullName: String,
+    val employeeCode: String,
+    val daysPresent: Int,
+    val daysPmUpdated: Int,
+    val daysPresentNoUpdate: Int,
+    val daysAbsent: Int,
+    val dayMarks: List<String>,
+)
+
+data class WeeklyPmReportUi(
+    val weekLabel: String,
+    val weekStart: String?,
+    val managerName: String?,
+    val avgDaysPresent: Double,
+    val presentNoUpdateDays: Int,
+    val highlights: List<String>,
+    val dayLabels: List<String>,
+    val employees: List<WeeklyPmReportEmployee>,
 )
 
 class AttendifyViewModel(
@@ -320,18 +393,27 @@ class AttendifyViewModel(
         _state.update { it.copy(biometricFailCount = count) }
     }
 
+    /** Debug/emulator only — never true in release builds. */
+    fun isFingerprintBypassEnabled(): Boolean = allowFingerprintBypass()
+
     /** Safety net if UI somehow lands on Home without an in-process unlock. */
     fun reassertLockGate() {
         if (_state.value.unlockedThisProcess) return
         val canBio = biometricAvailable()
+        val bypass = allowFingerprintBypass()
         if (vault.isRegisteredReady()) {
             _state.update {
                 it.copy(
-                    phase = if (canBio) AuthPhase.LockedFingerprint else AuthPhase.LockedPasscode,
+                    phase = if (canBio || bypass) AuthPhase.LockedFingerprint else AuthPhase.LockedPasscode,
                     email = vault.email.orEmpty(),
-                    canUseBiometric = canBio,
+                    canUseBiometric = canBio || bypass,
                     busy = false,
                     unlockedThisProcess = false,
+                    biometricStatusMessage = if (bypass && !canBio) {
+                        "Debug bypass: fingerprint skipped on emulator/debug build."
+                    } else {
+                        null
+                    },
                 )
             }
         } else {
@@ -393,27 +475,31 @@ class AttendifyViewModel(
                         // Offline: keep local READY gate and unlock when network returns.
                     }
                 }
+                val bypass = allowFingerprintBypass()
                 _state.update {
                     it.copy(
                         phase = AuthPhase.LockedFingerprint,
                         email = vault.email.orEmpty(),
-                        canUseBiometric = canBio,
+                        canUseBiometric = canBio || bypass,
                         busy = false,
                         message = null,
                         error = null,
                         unlockedThisProcess = false,
-                        biometricStatusMessage = when (bioStatus) {
-                            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED ->
+                        biometricStatusMessage = when {
+                            bypass && !canBio ->
+                                "Debug bypass: fingerprint skipped on emulator/debug build."
+                            bioStatus == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED ->
                                 "No fingerprint enrolled. Open Android Settings, add a fingerprint, then return."
-                            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
-                            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE,
-                            BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED,
-                            -> "Fingerprint is not available. Use your app passcode."
+                            bioStatus == BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE ||
+                                bioStatus == BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE ||
+                                bioStatus == BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED ->
+                                "Fingerprint is not available. Use your app passcode."
                             else -> null
                         },
                     )
                 }
-                if (bioStatus != BiometricManager.BIOMETRIC_SUCCESS &&
+                if (!bypass &&
+                    bioStatus != BiometricManager.BIOMETRIC_SUCCESS &&
                     bioStatus != BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED
                 ) {
                     _state.update { it.copy(phase = AuthPhase.LockedPasscode) }
@@ -451,19 +537,23 @@ class AttendifyViewModel(
         val verified = api.verifyOtp(email, "ACTIVATION", _state.value.otp)
         activationToken = verified.getString("activationToken")
         val status = biometricStatusCode()
-        when (status) {
-            BiometricManager.BIOMETRIC_SUCCESS -> {
+        when {
+            status == BiometricManager.BIOMETRIC_SUCCESS || allowFingerprintBypass() -> {
                 _state.update {
                     it.copy(
                         phase = AuthPhase.SetupFingerprint,
-                        canUseBiometric = true,
+                        canUseBiometric = status == BiometricManager.BIOMETRIC_SUCCESS,
                         otp = "",
-                        message = "Email verified. Set up fingerprint unlock.",
+                        message = if (status == BiometricManager.BIOMETRIC_SUCCESS) {
+                            "Email verified. Set up fingerprint unlock."
+                        } else {
+                            "Email verified. Debug bypass: continue without fingerprint on this emulator."
+                        },
                         error = null,
                     )
                 }
             }
-            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+            status == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
                 _state.update {
                     it.copy(
                         phase = AuthPhase.SetupBlocked,
@@ -490,12 +580,18 @@ class AttendifyViewModel(
 
     fun resumeFingerprintSetupAfterSettings() {
         val status = biometricStatusCode()
-        if (status == BiometricManager.BIOMETRIC_SUCCESS && !activationToken.isNullOrBlank()) {
+        if ((status == BiometricManager.BIOMETRIC_SUCCESS || allowFingerprintBypass()) &&
+            !activationToken.isNullOrBlank()
+        ) {
             _state.update {
                 it.copy(
                     phase = AuthPhase.SetupFingerprint,
-                    canUseBiometric = true,
-                    message = "Fingerprint enrolled. Continue setup.",
+                    canUseBiometric = status == BiometricManager.BIOMETRIC_SUCCESS,
+                    message = if (status == BiometricManager.BIOMETRIC_SUCCESS) {
+                        "Fingerprint enrolled. Continue setup."
+                    } else {
+                        "Debug bypass: continue without fingerprint."
+                    },
                     error = null,
                 )
             }
@@ -515,7 +611,8 @@ class AttendifyViewModel(
             _state.update { it.copy(error = "Setup expired. Start again with your work email.") }
             return
         }
-        if (biometricStatusCode() != BiometricManager.BIOMETRIC_SUCCESS) {
+        val bypass = allowFingerprintBypass()
+        if (biometricStatusCode() != BiometricManager.BIOMETRIC_SUCCESS && !bypass) {
             _state.update {
                 it.copy(
                     phase = AuthPhase.SetupBlocked,
@@ -526,15 +623,20 @@ class AttendifyViewModel(
         }
         runAction {
             val email = vault.email ?: _state.value.email.trim()
-            vault.createDeviceKey(requireUserAuth = true)
+            // Debug/emulator: non-auth key so signing works without BiometricPrompt.
+            vault.createDeviceKey(requireUserAuth = !bypass)
             val cryptoSignature = vault.prepareCryptoSignature()
-            val unlocked = authenticateCrypto(
-                activity = activity,
-                title = "Set up fingerprint unlock",
-                subtitle = "Confirm your fingerprint. Your phone screen-lock PIN is not used as the Attendify passcode.",
-                signature = cryptoSignature,
-            )
-            vault.signNonce(unlocked, localActivationNonce())
+            if (bypass) {
+                vault.signNonce(cryptoSignature, localActivationNonce())
+            } else {
+                val unlocked = authenticateCrypto(
+                    activity = activity,
+                    title = "Set up fingerprint unlock",
+                    subtitle = "Confirm your fingerprint. Your phone screen-lock PIN is not used as the Attendify passcode.",
+                    signature = cryptoSignature,
+                )
+                vault.signNonce(unlocked, localActivationNonce())
+            }
 
             val deviceId = api.registerDevice(
                 activationToken = token,
@@ -616,13 +718,17 @@ class AttendifyViewModel(
                 }
                 return@runAction
             }
-            val unlocked = authenticateCryptoForUnlock(
-                activity = activity,
-                title = "Unlock Attendify",
-                subtitle = "Use your fingerprint. After 3 mismatches you can enter your app passcode.",
-                signature = cryptoSignature,
-            ) ?: return@runAction // cancelled or switched to passcode
-            val signature = vault.signNonce(unlocked, challenge.getString("nonce"))
+            val signature = if (allowFingerprintBypass()) {
+                vault.signNonce(cryptoSignature, challenge.getString("nonce"))
+            } else {
+                val unlocked = authenticateCryptoForUnlock(
+                    activity = activity,
+                    title = "Unlock Attendify",
+                    subtitle = "Use your fingerprint. After 3 mismatches you can enter your app passcode.",
+                    signature = cryptoSignature,
+                ) ?: return@runAction // cancelled or switched to passcode
+                vault.signNonce(unlocked, challenge.getString("nonce"))
+            }
             val proof = api.verifyDeviceChallenge(challenge.getString("challengeId"), signature)
             val session = try {
                 api.unlockBiometric(proof)
@@ -794,12 +900,11 @@ class AttendifyViewModel(
                                 workDateLabel = row.optString("workDateLabel"),
                                 attendanceKind = row.optString("attendanceKind"),
                                 status = row.optString("status"),
-                                workplaceName = row.optString("workplaceName").ifBlank { null },
-                                shiftName = row.optString("shiftName").ifBlank { null },
-                                checkInLabel = row.optString("checkInLabel").ifBlank { null },
-                                checkOutLabel = row.optString("checkOutLabel").ifBlank { null },
-                                hoursLabel = row.optString("hoursLabel").ifBlank { null },
-                                breaksLabel = row.optString("breaksLabel").ifBlank { null },
+                                workplaceName = row.optNullableString("workplaceName"),
+                                shiftName = row.optNullableString("shiftName"),
+                                checkInLabel = row.optNullableString("checkInLabel"),
+                                checkOutLabel = row.optNullableString("checkOutLabel"),
+                                hoursLabel = row.optNullableString("hoursLabel"),
                             ),
                         )
                     }
@@ -844,9 +949,9 @@ class AttendifyViewModel(
                                 dayLabel = row.optString("dayLabel"),
                                 isOff = row.optBoolean("isOff"),
                                 isToday = row.optBoolean("isToday"),
-                                shiftName = row.optString("shiftName").ifBlank { null },
-                                shiftWindow = row.optString("shiftWindow").ifBlank { null },
-                                offLabel = row.optString("offLabel").ifBlank { null },
+                                shiftName = row.optNullableString("shiftName"),
+                                shiftWindow = row.optNullableString("shiftWindow"),
+                                offLabel = row.optNullableString("offLabel"),
                             ),
                         )
                     }
@@ -977,6 +1082,296 @@ class AttendifyViewModel(
         }
     }
 
+    fun loadProjects() = runAction(showBusy = false) {
+        val token = vault.sessionToken ?: throw ApiException("Sign in again.")
+        _state.update { it.copy(projectsBusy = true, projectsError = null) }
+        try {
+            applyProjectsPayload(api.myProjects(token))
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(projectsBusy = false, projectsError = error.message ?: "Could not load projects.")
+            }
+        }
+    }
+
+    fun markWorkProgressUpdated() = runAction(showBusy = false) {
+        val token = vault.sessionToken ?: throw ApiException("Sign in again.")
+        _state.update { it.copy(projectsBusy = true, projectsError = null) }
+        try {
+            if (_state.value.attendance.status != "OPEN") {
+                throw ApiException("Check in before updating work progress.")
+            }
+            applyProjectsPayload(api.markWorkProgress(token))
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(projectsBusy = false, projectsError = error.message ?: "Could not mark progress.")
+            }
+        }
+    }
+
+    fun updateWorkTaskStatus(
+        task: ProjectTaskItem,
+        status: String,
+        workNote: String? = null,
+        includeWorkNote: Boolean = false,
+    ) = runAction(showBusy = false) {
+        val token = vault.sessionToken ?: throw ApiException("Sign in again.")
+        _state.update { it.copy(projectsBusy = true, projectsError = null) }
+        try {
+            if (_state.value.attendance.status != "OPEN") {
+                throw ApiException("Check in before updating tasks.")
+            }
+            val taskId = task.id?.takeIf { it.isNotBlank() }
+                ?: throw ApiException("This task has no Project Control id. Open Project Control to update it.")
+            applyProjectsPayload(
+                api.updateWorkTaskStatus(
+                    token = token,
+                    taskId = taskId,
+                    status = status,
+                    title = task.title,
+                    projectName = task.projectName,
+                    workNote = workNote,
+                    includeWorkNote = includeWorkNote,
+                ),
+            )
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(projectsBusy = false, projectsError = error.message ?: "Could not update task.")
+            }
+        }
+    }
+
+    fun createWorkProject(projectName: String, title: String, note: String) = runAction(showBusy = false) {
+        val token = vault.sessionToken ?: throw ApiException("Sign in again.")
+        _state.update { it.copy(projectsBusy = true, projectsError = null) }
+        try {
+            if (_state.value.attendance.status != "OPEN") {
+                throw ApiException("Check in before adding a project.")
+            }
+            val name = projectName.trim()
+            applyProjectsPayload(api.createWorkTask(token, name, title.trim(), note.trim().ifBlank { null }))
+            _state.update { it.copy(projectJustCreated = name) }
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(projectsBusy = false, projectsError = error.message ?: "Could not add the project.")
+            }
+        }
+    }
+
+    fun clearProjectJustCreated() {
+        _state.update { it.copy(projectJustCreated = null) }
+    }
+
+    fun saveWorkTaskNote(task: ProjectTaskItem, note: String) {
+        val status = task.status?.takeIf { it.isNotBlank() } ?: "In progress"
+        updateWorkTaskStatus(task, status, workNote = note, includeWorkNote = true)
+    }
+
+    private fun applyProjectsPayload(payload: JSONObject) {
+        val projectsJson = payload.optJSONArray("projects")
+        val tasksJson = payload.optJSONArray("tasks")
+        val projects = buildList {
+            if (projectsJson != null) {
+                for (i in 0 until projectsJson.length()) {
+                    val row = projectsJson.getJSONObject(i)
+                    add(
+                        ProjectItem(
+                            name = row.optString("name"),
+                            taskCount = row.optInt("taskCount"),
+                            openTaskCount = row.optInt("openTaskCount"),
+                        ),
+                    )
+                }
+            }
+        }
+        val tasks = buildList {
+            if (tasksJson != null) {
+                for (i in 0 until tasksJson.length()) {
+                    val row = tasksJson.getJSONObject(i)
+                    val notesJson = row.optJSONArray("notes")
+                    val notes = buildList {
+                        if (notesJson != null) {
+                            for (n in 0 until notesJson.length()) {
+                                val note = notesJson.optJSONObject(n) ?: continue
+                                val text = note.optNullableString("text") ?: continue
+                                add(
+                                    WorkNoteMessage(
+                                        id = note.optNullableString("id") ?: text,
+                                        text = text,
+                                        createdAt = note.optNullableString("createdAt").orEmpty(),
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                        add(
+                            ProjectTaskItem(
+                                id = row.optNullableString("id"),
+                                title = row.optString("title"),
+                                status = row.optNullableString("status"),
+                                projectName = row.optNullableString("projectName"),
+                                dueDate = row.optNullableString("dueDate"),
+                                workNote = row.optNullableString("workNote"),
+                                notes = notes,
+                                stillAssigned = if (row.isNull("stillAssigned")) null else row.optBoolean("stillAssigned"),
+                                pendingPm = !row.isNull("pendingPm") && row.optBoolean("pendingPm"),
+                            ),
+                        )
+                }
+            }
+        }
+        _state.update {
+            it.copy(
+                projectsBusy = false,
+                projectsError = null,
+                projectsWriteEligible = payload.optBoolean("writeEligible", false),
+                projectsWorkDate = payload.optString("workDate").ifBlank { null },
+                projectsMessage = payload.optString("message").ifBlank { null },
+                projectsProgressUpdated = payload.optBoolean("progressUpdatedToday", false) ||
+                    payload.optBoolean("updatedInApp", false),
+                projectItems = projects,
+                projectTasks = tasks,
+                pmWebUrl = payload.optString("pmWebUrl").ifBlank { null } ?: it.pmWebUrl,
+            )
+        }
+    }
+
+    fun loadDailyPmReport(date: String? = null) = runAction(showBusy = false) {
+        val token = vault.sessionToken ?: throw ApiException("Sign in again.")
+        _state.update { it.copy(reportBusy = true, reportError = null, reportMessage = null) }
+        try {
+            val payload = api.dailyPmReport(token, date)
+            val summary = payload.optJSONObject("summary")
+            val rowsJson = payload.optJSONArray("rows")
+            val rows = buildList {
+                if (rowsJson != null) {
+                    for (i in 0 until rowsJson.length()) {
+                        val row = rowsJson.getJSONObject(i)
+                        add(
+                            DailyPmReportRow(
+                                fullName = row.optString("fullName"),
+                                employeeCode = row.optString("employeeCode"),
+                                checkedIn = row.optBoolean("checkedIn"),
+                                sessionStatus = row.optString("sessionStatus"),
+                                checkInLabel = row.optNullableString("checkInLabel"),
+                                checkOutLabel = row.optNullableString("checkOutLabel"),
+                                pmUpdate = row.optString("pmUpdate"),
+                                exception = row.optString("exception").ifBlank { null },
+                            ),
+                        )
+                    }
+                }
+            }
+            _state.update {
+                it.copy(
+                    reportBusy = false,
+                    dailyReport = DailyPmReportUi(
+                        workDateLabel = payload.optString("workDateLabel").ifBlank {
+                            payload.optString("workDate")
+                        },
+                        presentCount = summary?.optInt("presentCount") ?: 0,
+                        pmUpdatedCount = summary?.optInt("pmUpdatedCount") ?: 0,
+                        presentNoUpdateCount = summary?.optInt("presentNoUpdateCount") ?: 0,
+                        rows = rows,
+                    ),
+                )
+            }
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(reportBusy = false, reportError = error.message ?: "Could not load daily report.")
+            }
+        }
+    }
+
+    fun loadWeeklyPmReport(weekStart: String? = null) = runAction(showBusy = false) {
+        val token = vault.sessionToken ?: throw ApiException("Sign in again.")
+        _state.update { it.copy(reportBusy = true, reportError = null, reportMessage = null) }
+        try {
+            val payload = api.weeklyPmReport(token, weekStart)
+            val summary = payload.optJSONObject("summary")
+            val employeesJson = payload.optJSONArray("employees")
+            val highlightsJson = payload.optJSONArray("highlights")
+            val dayLabelsJson = payload.optJSONArray("dayLabels")
+            val employees = buildList {
+                if (employeesJson != null) {
+                    for (i in 0 until employeesJson.length()) {
+                        val row = employeesJson.getJSONObject(i)
+                        val marksJson = row.optJSONArray("dayMarks")
+                        val marks = buildList {
+                            if (marksJson != null) {
+                                for (j in 0 until marksJson.length()) add(marksJson.optString(j))
+                            }
+                        }
+                        add(
+                            WeeklyPmReportEmployee(
+                                fullName = row.optString("fullName"),
+                                employeeCode = row.optString("employeeCode"),
+                                daysPresent = row.optInt("daysPresent"),
+                                daysPmUpdated = row.optInt("daysPmUpdated"),
+                                daysPresentNoUpdate = row.optInt("daysPresentNoUpdate"),
+                                daysAbsent = row.optInt("daysAbsent"),
+                                dayMarks = marks,
+                            ),
+                        )
+                    }
+                }
+            }
+            val highlights = buildList {
+                if (highlightsJson != null) {
+                    for (i in 0 until highlightsJson.length()) add(highlightsJson.optString(i))
+                }
+            }
+            val dayLabels = buildList {
+                if (dayLabelsJson != null) {
+                    for (i in 0 until dayLabelsJson.length()) add(dayLabelsJson.optString(i))
+                }
+            }
+            _state.update {
+                it.copy(
+                    reportBusy = false,
+                    weeklyReport = WeeklyPmReportUi(
+                        weekLabel = payload.optString("weekLabel"),
+                        weekStart = payload.optString("weekStart").ifBlank { null },
+                        managerName = payload.optString("managerName").ifBlank { null },
+                        avgDaysPresent = summary?.optDouble("avgDaysPresent") ?: 0.0,
+                        presentNoUpdateDays = summary?.optInt("presentNoUpdateDays") ?: 0,
+                        highlights = highlights,
+                        dayLabels = dayLabels,
+                        employees = employees,
+                    ),
+                )
+            }
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(reportBusy = false, reportError = error.message ?: "Could not load weekly report.")
+            }
+        }
+    }
+
+    fun emailWeeklyPmReport() = runAction(showBusy = false) {
+        val token = vault.sessionToken ?: throw ApiException("Sign in again.")
+        val weekStart = _state.value.weeklyReport?.weekStart
+        _state.update { it.copy(reportBusy = true, reportError = null, reportMessage = null) }
+        try {
+            val result = api.emailWeeklyPmReport(token, weekStart)
+            val emailed = result.optBoolean("emailed", false)
+            _state.update {
+                it.copy(
+                    reportBusy = false,
+                    reportMessage = if (emailed) {
+                        "Weekly report emailed to ${result.optString("to")}."
+                    } else {
+                        result.optString("reason", "Email was not sent (mail may be unconfigured).")
+                    },
+                )
+            }
+        } catch (error: Exception) {
+            _state.update {
+                it.copy(reportBusy = false, reportError = error.message ?: "Could not email weekly report.")
+            }
+        }
+    }
+
     fun submitLeaveRequest(
         leaveType: String,
         startDate: String,
@@ -1061,45 +1456,8 @@ class AttendifyViewModel(
                 error = null,
                 locationReady = true,
                 locationAddress = place.addressLine,
-                onBreak = false,
-                breakStartedAtMs = null,
-                breakPlannedEndMs = null,
-                totalBreakMs = 0L,
                 activity = listOf(ActivityItem(checkInLabel, "Checked in", arrivalBadge)),
-            )
-        }
-    }
-
-    fun startBreak(durationMinutes: Int, type: String, note: String) {
-        val now = System.currentTimeMillis()
-        val nowLabel = currentClockLabel()
-        val minutes = durationMinutes.coerceIn(1, 240)
-        _state.update { state ->
-            if (state.attendance.status != "OPEN" || state.onBreak) return@update state
-            state.copy(
-                onBreak = true,
-                breakStartedAtMs = now,
-                breakPlannedEndMs = now + minutes * 60_000L,
-                breakDurationMinutes = minutes,
-                breakType = type.ifBlank { "Break" },
-                breakNote = note.trim(),
-                activity = state.activity + ActivityItem(nowLabel, "Break started"),
-            )
-        }
-    }
-
-    fun endBreak() {
-        val nowLabel = currentClockLabel()
-        _state.update { state ->
-            if (!state.onBreak) return@update state
-            val started = state.breakStartedAtMs ?: System.currentTimeMillis()
-            val added = (System.currentTimeMillis() - started).coerceAtLeast(0L)
-            state.copy(
-                onBreak = false,
-                breakStartedAtMs = null,
-                breakPlannedEndMs = null,
-                totalBreakMs = state.totalBreakMs + added,
-                activity = state.activity + ActivityItem(nowLabel, "Back to work"),
+                projectsWriteEligible = true,
             )
         }
     }
@@ -1172,8 +1530,6 @@ class AttendifyViewModel(
     fun checkOut() = beginCheckOut()
 
     private suspend fun performCheckOut(token: String) {
-        // Close an open break before checking out so break totals stay accurate.
-        if (_state.value.onBreak) endBreak()
         val place = resolvePunchPlace()
         val result = api.checkOut(
             token = token,
@@ -1195,10 +1551,9 @@ class AttendifyViewModel(
                 error = null,
                 locationReady = true,
                 locationAddress = place.addressLine,
-                onBreak = false,
-                breakStartedAtMs = null,
-                breakPlannedEndMs = null,
                 activity = it.activity + ActivityItem(outLabel, "Checked out"),
+                projectsWriteEligible = false,
+                projectsProgressUpdated = false,
             )
         }
     }
@@ -1287,10 +1642,6 @@ class AttendifyViewModel(
                 loginStep = 1,
                 unlockedThisProcess = true,
                 attendance = ui,
-                onBreak = if (ui.status == "OPEN") it.onBreak else false,
-                breakStartedAtMs = if (ui.status == "OPEN") it.breakStartedAtMs else null,
-                breakPlannedEndMs = if (ui.status == "OPEN") it.breakPlannedEndMs else null,
-                totalBreakMs = if (ui.status == "OPEN") it.totalBreakMs else 0L,
                 activity = if (ui.status == "OPEN" && it.activity.isNotEmpty()) it.activity else seededActivity,
                 locationReady = false,
                 locationAddress = null,
@@ -1428,6 +1779,28 @@ class AttendifyViewModel(
     private fun biometricStatusCode(): Int {
         val manager = BiometricManager.from(getApplication())
         return manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+    }
+
+    /**
+     * Temporary QA escape hatch: debug APK on emulator, or debug APK when strong biometric
+     * is unavailable. Release builds always return false.
+     */
+    private fun allowFingerprintBypass(): Boolean {
+        // Debug + emulator only — never skip biometrics on a physical debug phone.
+        return BuildConfig.DEBUG && isRunningOnEmulator()
+    }
+
+    private fun isRunningOnEmulator(): Boolean {
+        val fingerprint = Build.FINGERPRINT
+        return fingerprint.startsWith("generic") ||
+            fingerprint.startsWith("unknown") ||
+            fingerprint.contains("emulator", ignoreCase = true) ||
+            Build.MODEL.contains("Emulator", ignoreCase = true) ||
+            Build.MODEL.contains("Android SDK", ignoreCase = true) ||
+            Build.MANUFACTURER.contains("Genymotion", ignoreCase = true) ||
+            Build.PRODUCT.contains("sdk", ignoreCase = true) ||
+            Build.HARDWARE.contains("ranchu") ||
+            Build.HARDWARE.contains("goldfish")
     }
 
     private suspend fun authenticateCrypto(
@@ -1698,4 +2071,10 @@ private object Base64Url {
     fun encode(bytes: ByteArray): String {
         return android.util.Base64.encodeToString(bytes, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP)
     }
+}
+
+/** optString turns JSON null into the text "null"; this returns null instead. */
+private fun JSONObject.optNullableString(name: String): String? {
+    if (isNull(name)) return null
+    return optString(name).trim().takeIf { it.isNotEmpty() && it != "null" }
 }

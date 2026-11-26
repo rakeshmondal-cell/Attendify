@@ -177,9 +177,14 @@ private fun SetupFingerprintScreen(
     viewModel: AttendifyViewModel,
     activity: FragmentActivity,
 ) {
+    val bypass = viewModel.isFingerprintBypassEnabled() && !state.canUseBiometric
     AuthScaffold(
-        title = "Set up fingerprint unlock",
-        subtitle = "Fingerprint unlocks Attendify on this phone. Your screen-lock PIN is never used as the app passcode.",
+        title = if (bypass) "Continue setup (debug)" else "Set up fingerprint unlock",
+        subtitle = if (bypass) {
+            "Debug/emulator bypass: fingerprint is skipped for this build only. Release builds still require it."
+        } else {
+            "Fingerprint unlocks Attendify on this phone. Your screen-lock PIN is never used as the app passcode."
+        },
         state = state,
     ) {
         Box(
@@ -193,7 +198,7 @@ private fun SetupFingerprintScreen(
         }
         Spacer(Modifier.height(36.dp))
         PrimaryCta(
-            label = "Verify fingerprint",
+            label = if (bypass) "Continue without fingerprint" else "Verify fingerprint",
             enabled = !state.busy,
             onClick = { viewModel.finishActivation(activity) },
         )
@@ -206,6 +211,7 @@ private fun SetupBlockedScreen(
     viewModel: AttendifyViewModel,
     activity: FragmentActivity,
 ) {
+    val bypass = viewModel.isFingerprintBypassEnabled()
     AuthScaffold(
         title = "Fingerprint required",
         subtitle = state.message ?: state.error ?: "This phone must support fingerprint unlock.",
@@ -221,6 +227,15 @@ private fun SetupBlockedScreen(
         Spacer(Modifier.height(12.dp))
         TextButton(onClick = viewModel::resumeFingerprintSetupAfterSettings, enabled = !state.busy) {
             Text("I enrolled a fingerprint — continue", color = AttendifyPurple, fontWeight = FontWeight.Bold)
+        }
+        if (bypass) {
+            Spacer(Modifier.height(12.dp))
+            TextButton(
+                onClick = { viewModel.finishActivation(activity) },
+                enabled = !state.busy,
+            ) {
+                Text("Debug: continue without fingerprint", color = AttendifyMuted, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -246,10 +261,15 @@ private fun LockedFingerprintScreen(
     viewModel: AttendifyViewModel,
     activity: FragmentActivity,
 ) {
+    val bypass = viewModel.isFingerprintBypassEnabled()
     AuthScaffold(
         title = "Unlock Attendify",
         subtitle = state.biometricStatusMessage
-            ?: "Use your fingerprint. After 3 mismatches you can enter your app passcode.",
+            ?: if (bypass) {
+                "Debug bypass: tap unlock — fingerprint is not required on this build."
+            } else {
+                "Use your fingerprint. After 3 mismatches you can enter your app passcode."
+            },
         state = state,
     ) {
         Box(
@@ -271,7 +291,7 @@ private fun LockedFingerprintScreen(
             Spacer(Modifier.height(12.dp))
         }
         PrimaryCta(
-            label = "Unlock with fingerprint",
+            label = if (bypass) "Unlock (debug bypass)" else "Unlock with fingerprint",
             enabled = !state.busy,
             onClick = { viewModel.unlockWithFingerprint(activity) },
         )

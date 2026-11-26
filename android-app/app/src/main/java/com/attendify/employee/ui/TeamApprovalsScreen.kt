@@ -69,8 +69,45 @@ private enum class TeamFilter { Pending, Approved, Rejected }
 
 @Composable
 fun TeamApprovalsHub(state: UiState, viewModel: AttendifyViewModel) {
+    var hubTab by remember { mutableStateOf(0) } // 0 approvals, 1 reports
     var selectedId by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { viewModel.loadTeamRequests() }
+    LaunchedEffect(hubTab) {
+        if (hubTab == 0) viewModel.loadTeamRequests()
+    }
+
+    if (hubTab == 1) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "Approvals",
+                    color = AttendifyMuted,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .clickable { hubTab = 0 }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+                Text(
+                    "Reports",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AttendifyPurple)
+                        .clickable { hubTab = 1 }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
+            ManagerReportsScreen(state, viewModel)
+        }
+        return
+    }
 
     val selected = state.teamRequests.firstOrNull { it.id == selectedId }
     if (selected != null) {
@@ -81,10 +118,39 @@ fun TeamApprovalsHub(state: UiState, viewModel: AttendifyViewModel) {
             onBack = { selectedId = null },
         )
     } else {
-        TeamApprovalsList(
-            state = state,
-            onOpen = { selectedId = it },
-        )
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "Approvals",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AttendifyPurple)
+                        .clickable { hubTab = 0 }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+                Text(
+                    "Reports",
+                    color = AttendifyMuted,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .clickable { hubTab = 1 }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
+            TeamApprovalsList(
+                state = state,
+                onOpen = { selectedId = it },
+            )
+        }
     }
 }
 

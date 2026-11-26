@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
@@ -200,11 +199,6 @@ fun AttendanceHistoryScreen(state: UiState, viewModel: AttendifyViewModel) {
         DayDetailCard(
             date = selectedDate,
             day = selected,
-            localBreakLabel = if (selectedDate == LocalDate.now() && state.totalBreakMs > 0) {
-                formatBreakMinutes((state.totalBreakMs / 60_000).toInt())
-            } else {
-                null
-            },
         )
 
         if (state.historyError != null) {
@@ -311,7 +305,7 @@ private fun MonthGrid(
 }
 
 @Composable
-private fun DayDetailCard(date: LocalDate, day: HistoryDay?, localBreakLabel: String?) {
+private fun DayDetailCard(date: LocalDate, day: HistoryDay?) {
     val label = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy", Locale.US))
     val status = when (day?.attendanceKind) {
         "PRESENT" -> "Present"
@@ -366,23 +360,15 @@ private fun DayDetailCard(date: LocalDate, day: HistoryDay?, localBreakLabel: St
                 modifier = Modifier.weight(1f),
                 icon = Icons.AutoMirrored.Filled.Logout,
                 label = "Check-out",
-                value = day?.checkOutLabel ?: "--",
+                value = day?.checkOutLabel ?: if (day?.status == "OPEN") "Still in" else "--",
             )
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.BarChart,
-                label = "Work time",
-                value = day?.hoursLabel ?: "--",
-            )
-            DetailTile(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Coffee,
-                label = "Breaks",
-                value = localBreakLabel ?: day?.breaksLabel ?: "--",
-            )
-        }
+        DetailTile(
+            modifier = Modifier.fillMaxWidth(),
+            icon = Icons.Default.BarChart,
+            label = "Work time",
+            value = day?.hoursLabel ?: "--",
+        )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.LocationOn, null, tint = AttendifyMuted, modifier = Modifier.size(14.dp))
@@ -415,8 +401,3 @@ private fun DetailTile(modifier: Modifier, icon: ImageVector, label: String, val
     }
 }
 
-private fun formatBreakMinutes(minutes: Int): String {
-    val h = minutes / 60
-    val m = minutes % 60
-    return if (h > 0) "${h}h ${m}m" else "${m}m"
-}

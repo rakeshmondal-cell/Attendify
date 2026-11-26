@@ -212,6 +212,58 @@ class AttendifyApi(
 
     fun workListStatus(token: String): JSONObject = get("/me/work-list/status", token)
 
+    fun myProjects(token: String): JSONObject = get("/me/projects", token)
+
+    fun markWorkProgress(token: String): JSONObject =
+        post("/me/projects/progress", JSONObject(), token)
+
+    fun updateWorkTaskStatus(
+        token: String,
+        taskId: String,
+        status: String,
+        title: String?,
+        projectName: String?,
+        workNote: String? = null,
+        includeWorkNote: Boolean = false,
+    ): JSONObject {
+        val body = JSONObject()
+            .put("taskId", taskId)
+            .put("status", status)
+        if (!title.isNullOrBlank()) body.put("title", title)
+        if (!projectName.isNullOrBlank()) body.put("projectName", projectName)
+        if (includeWorkNote) body.put("workNote", workNote ?: "")
+        return post("/me/projects/tasks/status", body, token)
+    }
+
+    fun createWorkTask(
+        token: String,
+        projectName: String,
+        title: String,
+        workNote: String?,
+    ): JSONObject {
+        val body = JSONObject()
+            .put("projectName", projectName)
+            .put("title", title)
+        if (!workNote.isNullOrBlank()) body.put("workNote", workNote)
+        return post("/me/projects/tasks", body, token)
+    }
+
+    fun dailyPmReport(token: String, date: String?): JSONObject {
+        val query = if (date.isNullOrBlank()) "" else "?date=$date"
+        return get("/me/reports/daily$query", token)
+    }
+
+    fun weeklyPmReport(token: String, weekStart: String?): JSONObject {
+        val query = if (weekStart.isNullOrBlank()) "" else "?weekStart=$weekStart"
+        return get("/me/reports/weekly$query", token)
+    }
+
+    fun emailWeeklyPmReport(token: String, weekStart: String?): JSONObject {
+        val body = JSONObject()
+        if (!weekStart.isNullOrBlank()) body.put("weekStart", weekStart)
+        return post("/me/reports/weekly/email", body, token)
+    }
+
     fun registerPushToken(token: String, fcmToken: String): JSONObject {
         return post("/me/devices/push-token", JSONObject().put("token", fcmToken), token)
     }

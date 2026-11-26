@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Attendify × Project Control Prototype</title>
+<style>
+:root{--navy:#142d4e;--blue:#2869a6;--green:#218653;--red:#b83c3c;--ink:#1e293b;--muted:#64748b;--line:#dbe3ec;--bg:#f4f7fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial, sans-serif;color:var(--ink)}
+header{background:var(--navy);color:white;padding:22px max(20px,calc((100% - 1080px)/2))}
+h1{margin:12px 0 5px;font-size:28px}header p{margin:0;color:#d3e0ef;font-size:14px}
+nav,.tabs,.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+button{border:0;border-radius:8px;padding:11px 14px;font-weight:bold;cursor:pointer;background:#e8eef6;color:#26384d}
+button.primary{background:var(--blue);color:white}button.green{background:var(--green);color:white}button.danger{background:var(--red);color:white}button:disabled{opacity:.4;cursor:not-allowed}
+nav button{background:transparent;color:#d7e4f3;border:1px solid #57708c}nav button.active{background:white;color:var(--navy)}
+main{max-width:1080px;margin:24px auto;padding:0 18px 45px}.grid{display:grid;grid-template-columns:1.5fr .8fr;gap:16px}
+.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 3px 14px #1b35500a}
+h2{margin:0 0 5px;font-size:21px}.muted{color:var(--muted);font-size:13px}.eyebrow{font-size:11px;letter-spacing:.12em;color:#64809e;font-weight:bold}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.badge{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:bold;background:#fff2d9;color:#94620d}.ok{background:#e6f5ec;color:#176b40}.warn{background:#fff2d9;color:#94620d}.bad{background:#fde8e8;color:#9b2c2c}
+.attendance{margin-top:18px;background:#f7f9fc;border:1px solid var(--line);padding:18px;border-radius:12px}.time{font-size:34px;font-weight:bold;margin:10px 0}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:16px 0}.stat,.project,.task{background:#f7f9fc;border:1px solid var(--line);border-radius:11px;padding:14px}.stat b{display:block;font-size:26px}.project,.task{background:white;margin-top:10px}.project h3,.task h3{font-size:15px;margin:0 0 5px}.project p,.task p{font-size:12px;color:var(--muted);margin:0}.pill{display:inline-block;background:#e9eff7;color:#42546a;padding:5px 8px;border-radius:18px;font-size:11px;font-weight:bold;margin-top:9px}
+.locked,.success{padding:13px;border-radius:10px;margin-top:12px;font-size:13px}.locked{background:#fff6e8;border:1px solid #f0d8a8;color:#795616}.success{background:#eaf7ef;border:1px solid #c5e5d1;color:#176b40}
+.note{font-size:12px;color:var(--muted);line-height:1.5}.hidden{display:none!important}aside ol{padding-left:20px;color:#475569;font-size:13px;line-height:1.8}footer{text-align:center;color:#8793a3;font-size:11px;padding:20px}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;vertical-align:top}th{font-size:11px;letter-spacing:.04em;color:#64809e;text-transform:uppercase}tr:last-child td{border-bottom:0}
+.matrix{display:grid;grid-template-columns:140px repeat(5,1fr);gap:6px;margin-top:12px;font-size:11px}.matrix .head,.matrix .cell{padding:8px;border-radius:8px;text-align:center;border:1px solid var(--line)}.matrix .head{background:#f7f9fc;font-weight:bold;color:#42546a}.matrix .name{text-align:left;font-weight:bold;background:white}.matrix .p{background:#e6f5ec;color:#176b40}.matrix .u{background:#e8f0fe;color:#1d4ed8}.matrix .n{background:#fff2d9;color:#94620d}.matrix .a{background:#f1f5f9;color:#64748b}
+.highlight{margin-top:12px;padding:12px;border-radius:10px;background:#fff6e8;border:1px solid #f0d8a8;font-size:13px}.toast{position:fixed;right:20px;bottom:20px;background:#142d4e;color:white;padding:14px 18px;border-radius:10px;box-shadow:0 8px 24px #0003;z-index:20;display:none}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+@media(max-width:740px){.grid{grid-template-columns:1fr}header{padding:18px}h1{font-size:23px}.panel{padding:16px}.stats3,.matrix{grid-template-columns:1fr 1fr}.matrix .name{grid-column:1/-1}}
+</style></head><body>
+<header><div class="row"><b>◈ ATTENDIFY × PROJECT CONTROL</b><span class="eyebrow" style="color:#a9c8e8">CLICKABLE PROTOTYPE</span></div>
+<h1 id="pageTitle">Employee workspace</h1><p id="pageSub">Explore attendance, project allocations, task actions, read-only access, and manager reports.</p>
+<nav>
+<button id="navA" class="active" onclick="app('a')">▣ Attendify Android</button>
+<button id="navP" onclick="app('p')">▤ Project Control Web</button>
+<button id="navR" onclick="app('r')">▥ Reports</button>
+</nav></header>
+<main>
+<div class="grid" id="employeeGrid">
+<section class="panel" id="attendify">
+<div class="row"><div><div class="eyebrow">ATTENDIFY · NATIVE ANDROID APP</div><h2>Good morning, Alex</h2><div class="muted">Employee ID: MSR-1024 · Project team</div></div><span style="font-size:28px">👤</span></div>
+<div class="attendance"><div class="row"><b>Today's attendance</b><span id="attBadge" class="badge">Not checked in</span></div><div id="clock" class="time">--:--</div><div id="attText" class="muted">Check in to activate project write access.</div><div class="actions"><button id="attBtn" class="green" onclick="checkin()">✓ Check in</button></div></div>
+<div class="stats"><div class="stat"><b>2</b><span class="muted">Assigned projects</span></div><div class="stat"><b>8</b><span class="muted">Assigned tasks</span></div></div>
+<div class="tabs"><button id="projTab" class="primary" onclick="mobileTab('projects')">Projects</button><button id="taskTab" onclick="mobileTab('tasks')">My tasks</button></div>
+<div id="mProjects">
+<div class="project" onclick="details('ITC Hotels App')" style="cursor:pointer"><div class="row"><h3>🏨 ITC Hotels App</h3><span class="badge ok">Active</span></div><p>Mobile application · Priority P1</p><span class="pill">Allocation: 60%</span></div>
+<div class="project" onclick="details('Little Feet')" style="cursor:pointer"><div class="row"><h3>👶 Little Feet</h3><span class="badge ok">Active</span></div><p>Mobile application · Priority P2</p><span class="pill">Allocation: 40%</span></div></div>
+<div id="mTasks" class="hidden">
+<div class="task"><h3>Gourmet Couch – UI update</h3><p>ITC Hotels App · Due 12 Nov</p><span id="mStatus" class="pill">IN PROGRESS</span><div class="actions"><button id="mDone" onclick="toggleDone()">Mark as done</button></div></div>
+<div class="task"><h3>API integration testing</h3><p>ITC Hotels App · Due 14 Nov</p><span id="mSecond" class="pill">TO DO</span><div class="actions"><button id="mSecondBtn" onclick="toggleSecond()">Change status</button></div></div>
+<div id="mNew"></div><div id="mCreate"></div></div><div id="details" class="hidden"></div>
+</section>
+<aside class="panel" id="guidePanel"><div class="eyebrow">PROTOTYPE GUIDE</div><h2>Try the user journey</h2>
+<ol>
+<li>Check in using Attendify.</li>
+<li>Open My tasks and update or create a task.</li>
+<li>Switch to Project Control Web.</li>
+<li>Check out from Attendify.</li>
+<li>Return to Project Control. Write actions are locked.</li>
+<li>Open Reports → Daily to see who checked in and whether PM was updated.</li>
+<li>Open Weekly and click Email to manager.</li>
+</ol>
+<div class="locked"><b>Important rule</b><br>Attendance enables eligibility for write access; existing project roles and permissions still apply. Checked-in employees still cannot edit projects they are not authorized for.</div>
+<p class="note">Sample data only. No real attendance, project, task, or email records are changed. Alex’s daily report row updates live from this demo session.</p>
+</aside>
+</div>
+
+<section class="panel" id="project" style="margin-top:18px;display:none">
+<div class="row"><div><div class="eyebrow">PROJECT CONTROL · WEB APPLICATION</div><h2>My work</h2><div class="muted">Signed in as Alex · Employee MSR-1024</div></div><span style="font-size:28px">▤</span></div>
+<div class="attendance"><div class="row"><b>Access permission</b><span id="webBadge" class="badge">Read-only mode</span></div><p id="webText" class="muted">You can view your projects and tasks, but cannot make changes.</p></div>
+<div class="tabs"><button id="wTaskTab" class="primary" onclick="webTab('tasks')">My work</button><button id="wProjTab" onclick="webTab('projects')">Projects</button></div>
+<div id="wTasks"><div class="stats"><div class="stat"><b>2</b><span class="muted">To do</span></div><div class="stat"><b>4</b><span class="muted">In progress</span></div></div>
+<div class="task"><h3>Gourmet Couch – UI update</h3><p>ITC Hotels App · Assigned to Alex</p><span id="wStatus" class="pill">IN PROGRESS</span><div class="actions"><button id="wDone" onclick="toggleDone()">Mark as done</button></div></div>
+<div class="task"><h3>API integration testing</h3><p>ITC Hotels App · Assigned to Alex</p><span id="wSecond" class="pill">TO DO</span><div class="actions"><button id="wSecondBtn" onclick="toggleSecond()">Update status</button></div></div>
+<div id="wNew"></div><div class="actions"><button id="wCreate" onclick="newTask()">＋ Create task</button></div></div>
+<div id="wProjects" class="hidden"><div class="project"><h3>🏨 ITC Hotels App</h3><p>P1 · Allocation 60% · Active</p></div><div class="project"><h3>👶 Little Feet</h3><p>P2 · Allocation 40% · Active</p></div></div>
+<div id="checkoutNotice" class="locked">🔒 Write actions are disabled because there is no active attendance session.</div>
+</section>
+
+<section class="panel" id="reports" style="display:none;margin-top:0">
+<div class="row"><div><div class="eyebrow">REPORTS · MANAGER / HR VIEW</div><h2>Attendance &amp; PM activity</h2><div class="muted">PRD v1.1 demo · Daily who checked in + same-day PM fill · Weekly pack for respective managers</div></div><span style="font-size:28px">▥</span></div>
+<div class="tabs" style="margin-top:14px">
+<button id="dailyTab" class="primary" onclick="reportTab('daily')">Daily report</button>
+<button id="weeklyTab" onclick="reportTab('weekly')">Weekly manager report</button>
+</div>
+
+<div id="dailyReport">
+<div class="attendance">
+<div class="row"><b>Work date: Friday, 13 Nov 2026</b><span class="badge ok">Live demo sync for Alex</span></div>
+<p class="muted" style="margin:8px 0 0">Shows who checked in and whether they filled / updated anything in Project Control that day. Browse-only does not count as a PM update.</p>
+</div>
+<div class="stats3">
+<div class="stat"><b id="statPresent">0</b><span class="muted">Checked in</span></div>
+<div class="stat"><b id="statPmYes">0</b><span class="muted">PM updated</span></div>
+<div class="stat"><b id="statPmNo">0</b><span class="muted">Present, no PM update</span></div>
+</div>
+<div style="overflow-x:auto">
+<table>
+<thead><tr><th>Employee</th><th>Checked in?</th><th>In / Out</th><th>PM update?</th><th>Actions / last update</th><th>Exception</th></tr></thead>
+<tbody id="dailyBody"></tbody>
+</table>
+</div>
+</div>
+
+<div id="weeklyReport" class="hidden">
+<div class="attendance">
+<div class="row"><div><b>Week of 9–13 Nov 2026</b><div class="muted" style="margin-top:4px">Recipient: Operations Manager · Team: Project delivery</div></div><span class="badge ok">Auto-generated pack</span></div>
+</div>
+<div class="stats3">
+<div class="stat"><b>3</b><span class="muted">Team members</span></div>
+<div class="stat"><b id="weekPresentAvg">—</b><span class="muted">Avg days present</span></div>
+<div class="stat"><b id="weekNoUpdate">—</b><span class="muted">Present+no-update days</span></div>
+</div>
+<div style="overflow-x:auto">
+<table>
+<thead><tr><th>Employee</th><th>Days present</th><th>Days with PM update</th><th>Present, no update</th><th>Absent</th></tr></thead>
+<tbody id="weeklyBody"></tbody>
+</table>
+</div>
+<p class="muted" style="margin-top:16px"><b>Day matrix</b> · P = present only · U = present + PM update · N = present, no update · A = absent</p>
+<div class="matrix" id="weekMatrix"></div>
+<div class="highlight" id="weekHighlight"></div>
+<div class="actions" style="margin-top:14px">
+<button class="primary" onclick="emailManager()">✉ Email weekly report to Operations Manager</button>
+</div>
+<p class="note" style="margin-top:10px">Demonstration only — no email is sent. In production this would go only to the respective manager’s reporting line.</p>
+</div>
+</section>
+</main>
+<div class="toast" id="toast"></div>
+<footer>MSR IT Solution Pvt Ltd · Attendify + Project Control · Demonstration only · Includes daily &amp; weekly reporting panels (PRD v1.1)</footer>
+<script>
+let active=false,done=false,second=false,created='';
+let alexIn=null, alexOut=null, alexPmCount=0, alexLastPm=null;
+
+const teammates=[
+  {id:'MSR-1024', name:'Alex Kumar', reactive:true},
+  {id:'MSR-1108', name:'Priya Shah', present:true, inTime:'09:02 AM', outTime:'06:11 PM', pmYes:true, pmCount:5, lastPm:'03:40 PM', exception:'—'},
+  {id:'MSR-1182', name:'Rohan Mehta', present:true, inTime:'09:28 AM', outTime:'Open', pmYes:false, pmCount:0, lastPm:'—', exception:'—'},
+  {id:'MSR-9999', name:'Unmatched ID', present:false, inTime:'—', outTime:'—', pmYes:false, pmCount:0, lastPm:'—', exception:'Identity not mapped to Project Control'},
+];
+
+const weeklyStatic={
+  'MSR-1108':{present:5, pm:4, noUpdate:1, absent:0, days:['U','U','U','N','U']},
+  'MSR-1182':{present:4, pm:1, noUpdate:3, absent:1, days:['N','N','A','U','N']},
+};
+
+function app(which){
+  const showA=which==='a', showP=which==='p', showR=which==='r';
+  document.getElementById('employeeGrid').style.display=showA?'grid':'none';
+  document.getElementById('attendify').style.display=showA?'block':'none';
+  document.getElementById('guidePanel').style.display=showA?'block':'none';
+  document.getElementById('project').style.display=showP?'block':'none';
+  document.getElementById('reports').style.display=showR?'block':'none';
+  document.getElementById('navA').classList.toggle('active',showA);
+  document.getElementById('navP').classList.toggle('active',showP);
+  document.getElementById('navR').classList.toggle('active',showR);
+  document.getElementById('pageTitle').textContent=showR?'Manager reports':showP?'Project Control':'Employee workspace';
+  document.getElementById('pageSub').textContent=showR
+    ? 'Daily attendance vs Project Control fill, plus weekly pack for respective managers.'
+    : 'Explore attendance, project allocations, task actions, read-only access, and manager reports.';
+  if(showR){renderDaily();renderWeekly()}
+}
+
+function checkin(){
+  active=!active;
+  if(active){
+    alexIn='09:15 AM';
+    alexOut=null;
+  }else{
+    alexOut='06:05 PM';
+  }
+  document.getElementById('attBadge').textContent=active?'Checked in':'Checked out';
+  document.getElementById('attBadge').className='badge '+(active?'ok':'');
+  document.getElementById('clock').textContent=active?'09:15 AM':(alexOut||'--:--');
+  document.getElementById('attText').textContent=active?'Attendance session active · Location verified':'Session closed. Project write access revoked.';
+  document.getElementById('attBtn').textContent=active?'↪ Check out':'✓ Check in';
+  document.getElementById('attBtn').className=active?'danger':'green';
+  permissions();
+  renderDaily();
+  renderWeekly();
+}
+
+function permissions(){
+  document.getElementById('webBadge').textContent=active?'Write access eligible':'Read-only mode';
+  document.getElementById('webBadge').className='badge '+(active?'ok':'');
+  document.getElementById('webText').textContent=active
+    ?'Active Attendify session detected. Existing Project Control roles and permissions still apply.'
+    :'You can view your projects and tasks, but cannot make changes.';
+  ['wDone','wSecondBtn','wCreate','mDone','mSecondBtn'].forEach(id=>document.getElementById(id).disabled=!active);
+  document.getElementById('checkoutNotice').className=active?'success':'locked';
+  document.getElementById('checkoutNotice').textContent=active
+    ?'✓ Active attendance session. Write actions are eligible, subject to project permissions.'
+    :'🔒 Write actions are disabled because there is no active attendance session.';
+  document.getElementById('mCreate').innerHTML=active
+    ?'<button class="primary" onclick="newTask()">＋ Create task</button>'
+    :'<div class="locked">🔒 Task editing is locked. Check in through Attendify to create or update tasks.</div>';
+}
+
+function mobileTab(which){
+  document.getElementById('mProjects').classList.toggle('hidden',which!=='projects');
+  document.getElementById('mTasks').classList.toggle('hidden',which!=='tasks');
+  document.getElementById('details').classList.add('hidden');
+  document.getElementById('projTab').className=which==='projects'?'primary':'';
+  document.getElementById('taskTab').className=which==='tasks'?'primary':'';
+}
+
+function details(name){
+  ['mProjects','mTasks'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  let d=document.getElementById('details');
+  d.classList.remove('hidden');
+  d.innerHTML='<button onclick="mobileTab(\'projects\')">← Back to projects</button><h2 style="margin-top:15px">'+name+'</h2><div class="task"><b>Project summary</b><p style="margin-top:8px">Priority P1 · Allocation '+(name==='ITC Hotels App'?'60%':'40%')+' · Active</p></div><button class="primary" onclick="mobileTab(\'tasks\')">View project tasks</button>';
+}
+
+function recordPmAction(){
+  if(!active)return;
+  alexPmCount+=1;
+  const now=new Date();
+  let h=now.getHours(), m=String(now.getMinutes()).padStart(2,'0');
+  const ampm=h>=12?'PM':'AM'; h=h%12||12;
+  alexLastPm=h+':'+m+' '+ampm;
+  renderDaily();
+  renderWeekly();
+}
+
+function toggleDone(){
+  if(!active)return;
+  done=!done;
+  let s=done?'DONE':'IN PROGRESS';
+  ['mStatus','wStatus'].forEach(id=>document.getElementById(id).textContent=s);
+  ['mDone','wDone'].forEach(id=>document.getElementById(id).textContent=done?'Reopen task':'Mark as done');
+  recordPmAction();
+}
+
+function toggleSecond(){
+  if(!active)return;
+  second=!second;
+  ['mSecond','wSecond'].forEach(id=>document.getElementById(id).textContent=second?'IN PROGRESS':'TO DO');
+  recordPmAction();
+}
+
+function webTab(which){
+  document.getElementById('wTasks').classList.toggle('hidden',which!=='tasks');
+  document.getElementById('wProjects').classList.toggle('hidden',which!=='projects');
+  document.getElementById('wTaskTab').className=which==='tasks'?'primary':'';
+  document.getElementById('wProjTab').className=which==='projects'?'primary':'';
+}
+
+function newTask(){
+  if(!active)return;
+  let name=prompt('Enter a task title:');
+  if(!name||!name.trim())return;
+  created=name.trim();
+  let card='<div class="task"><h3>'+created.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))+'</h3><p>ITC Hotels App · TO DO · Created in prototype</p><span class="pill">TO DO</span></div>';
+  document.getElementById('mNew').innerHTML=card;
+  document.getElementById('wNew').innerHTML=card;
+  recordPmAction();
+}
+
+function reportTab(which){
+  document.getElementById('dailyReport').classList.toggle('hidden',which!=='daily');
+  document.getElementById('weeklyReport').classList.toggle('hidden',which!=='weekly');
+  document.getElementById('dailyTab').className=which==='daily'?'primary':'';
+  document.getElementById('weeklyTab').className=which==='weekly'?'primary':'';
+}
+
+function alexDaily(){
+  const present=!!alexIn;
+  const pmYes=alexPmCount>0;
+  return {
+    id:'MSR-1024',
+    name:'Alex Kumar',
+    present,
+    inTime:alexIn||'—',
+    outTime:present?(active?'Open':(alexOut||'—')):'—',
+    pmYes,
+    pmCount:alexPmCount,
+    lastPm:alexLastPm||'—',
+    exception:'—'
+  };
+}
+
+function dailyRows(){
+  return teammates.map(t=>t.reactive?alexDaily():t);
+}
+
+function yesNoBadge(yes, labelYes, labelNo){
+  return yes
+    ?'<span class="badge ok">'+(labelYes||'Yes')+'</span>'
+    :'<span class="badge">'+(labelNo||'No')+'</span>';
+}
+
+function renderDaily(){
+  const rows=dailyRows();
+  let present=0, pmYes=0, presentNo=0;
+  const body=document.getElementById('dailyBody');
+  body.innerHTML=rows.map(r=>{
+    if(r.present) present+=1;
+    if(r.present && r.pmYes) pmYes+=1;
+    if(r.present && !r.pmYes) presentNo+=1;
+    const pmCell=r.present
+      ?(r.pmYes?yesNoBadge(true,'Yes','No'):'<span class="badge warn">No PM update</span>')
+      :'<span class="badge">—</span>';
+    const actions=r.pmYes?(r.pmCount+' action'+(r.pmCount===1?'':'s')+' · '+r.lastPm):(r.present?'0 · —':'—');
+    const ex=r.exception && r.exception!=='—'
+      ?'<span class="badge bad">'+r.exception+'</span>'
+      :'—';
+    return '<tr><td><b>'+r.name+'</b><div class="muted">'+r.id+'</div></td><td>'+yesNoBadge(r.present,'Yes','No')+'</td><td>'+r.inTime+' / '+r.outTime+'</td><td>'+pmCell+'</td><td>'+actions+'</td><td>'+ex+'</td></tr>';
+  }).join('');
+  document.getElementById('statPresent').textContent=present;
+  document.getElementById('statPmYes').textContent=pmYes;
+  document.getElementById('statPmNo').textContent=presentNo;
+}
+
+function alexWeekly(){
+  // Base week sample + today's live demo day (Fri index 4)
+  const days=['U','N','U','A','A'];
+  if(alexIn){
+    days[4]=alexPmCount>0?'U':'N';
+  }else{
+    days[4]='A';
+  }
+  let present=0, pm=0, noUpdate=0, absent=0;
+  days.forEach(d=>{
+    if(d==='A')absent+=1;
+    else{present+=1; if(d==='U')pm+=1; else noUpdate+=1}
+  });
+  return {present, pm, noUpdate, absent, days};
+}
+
+function renderWeekly(){
+  const alex=alexWeekly();
+  const rows=[
+    {id:'MSR-1024', name:'Alex Kumar', ...alex},
+    {id:'MSR-1108', name:'Priya Shah', ...weeklyStatic['MSR-1108']},
+    {id:'MSR-1182', name:'Rohan Mehta', ...weeklyStatic['MSR-1182']},
+  ];
+  document.getElementById('weeklyBody').innerHTML=rows.map(r=>
+    '<tr><td><b>'+r.name+'</b><div class="muted">'+r.id+'</div></td><td>'+r.present+'</td><td>'+r.pm+'</td><td>'+r.noUpdate+'</td><td>'+r.absent+'</td></tr>'
+  ).join('');
+
+  const dayLabels=['Mon','Tue','Wed','Thu','Fri'];
+  let matrix='<div class="head"></div>'+dayLabels.map(d=>'<div class="head">'+d+'</div>').join('');
+  rows.forEach(r=>{
+    matrix+='<div class="cell name">'+r.name.split(' ')[0]+'</div>';
+    r.days.forEach(d=>{
+      const cls=d==='U'?'u':d==='N'?'n':d==='P'?'p':'a';
+      matrix+='<div class="cell '+cls+'">'+d+'</div>';
+    });
+  });
+  document.getElementById('weekMatrix').innerHTML=matrix;
+
+  const avg=(rows.reduce((s,r)=>s+r.present,0)/rows.length).toFixed(1);
+  const noUp=rows.reduce((s,r)=>s+r.noUpdate,0);
+  document.getElementById('weekPresentAvg').textContent=avg;
+  document.getElementById('weekNoUpdate').textContent=noUp;
+
+  const flagged=rows.filter(r=>r.noUpdate>=2).map(r=>r.name+' ('+r.noUpdate+' days)');
+  document.getElementById('weekHighlight').innerHTML=flagged.length
+    ?'<b>Highlight — repeated present but no PM update (2+ days):</b><br>'+flagged.join(' · ')
+    :'<b>Highlight:</b> No team member has 2+ present-but-no-update days this week.';
+}
+
+function emailManager(){
+  const t=document.getElementById('toast');
+  t.textContent='Weekly report queued to Operations Manager (demo only — no email sent).';
+  t.style.display='block';
+  setTimeout(()=>{t.style.display='none'},2800);
+}
+
+permissions();
+renderDaily();
+renderWeekly();
+</script></body></html>

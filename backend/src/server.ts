@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { initDatabase, writeEnvExample } from "./db.js";
@@ -16,6 +18,8 @@ import {
   createLeave,
   deleteEmployee,
   deviceAuthStatus,
+  dailyAttendancePmReport,
+  emailWeeklyManagerPmReport,
   finalizeSetup,
   getWorkListStatus,
   hrAttendance,
@@ -28,10 +32,16 @@ import {
   myAttendanceHistory,
   myAttendanceToday,
   myProfile,
+  markWorkProgressUpdated,
+  myProjects,
   myRequests,
+  createWorkTask,
+  updateWorkTaskStatus,
   myShift,
   myShiftRoster,
   registerPushToken,
+  verifyAttendanceForPm,
+  weeklyManagerPmReport,
   requestPasscodeReset,
   reviewTeamRequest,
   teamRequests,
@@ -48,10 +58,14 @@ import {
   verifyPasscodeReset,
 } from "./domain.js";
 import { startWorkListReminderWorker } from "./workListReminderWorker.js";
+import { startPmSyncWorker } from "./pmSync.js";
 
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "32kb" }));
+// TEMPORARY: local dummy Project Control page — delete with ATTENDIFY_DUMMY_PM after go-live.
+const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
+app.use(express.static(publicDir));
 app.use((request, response, next) => {
   const origin = request.header("origin");
   // Allow local Vite (localhost) and LAN hosts used for phone/desktop HR testing.
@@ -88,6 +102,22 @@ function bearer(request: Request): string | undefined {
   const header = request.header("authorization") ?? "";
   const match = /^Bearer\s+(\S+)$/i.exec(header);
   return match?.[1];
+}
+
+/** Shared-secret auth for Project Control → Attendify integration calls. */
+function requirePmIntegration(request: Request): void {
+  const bearerToken = (process.env.PM_BEARER_TOKEN ?? "").trim();
+  const apiKey = (process.env.PM_API_KEY ?? "").trim();
+  const expected = bearerToken || apiKey;
+  if (!expected) {
+    throw new HttpError(503, "PM_INTEGRATION_UNCONFIGURED", "Set PM_BEARER_TOKEN or PM_API_KEY.");
+  }
+  const auth = request.header("authorization") ?? "";
+  const match = /^Bearer\s+(\S+)$/i.exec(auth);
+  const provided = match?.[1] ?? request.header("x-api-key") ?? "";
+  if (!provided || provided !== expected) {
+    throw new HttpError(401, "UNAUTHORIZED", "Invalid integration credentials.");
+  }
 }
 
 function route(handler: (request: Request, response: Response) => unknown) {
@@ -250,6 +280,65 @@ app.post("/me/devices/push-token", route(async (request, response) => {
 
 app.get("/me/work-list/status", route(async (request, response) => {
   response.json(await getWorkListStatus(await readSession(bearer(request))));
+}));
+
+app.get("/me/projects", route(async (request, response) => {
+  response.json(await myProjects(await readSession(bearer(request))));
+}));
+
+app.post("/me/projects/progress", route(async (request, response) => {
+  response.json(await markWorkProgressUpdated(await readSession(bearer(request))));
+}));
+
+app.post("/me/projects/tasks", route(async (request, response) => {
+  const body = z.object({
+    projectName: z.string().trim().min(1).max(120),
+    title: z.string().trim().min(1).max(300),
+    workNote: z.string().max(2000).optional().nullable(),
+  }).parse(request.body ?? {});
+  response.json(await createWorkTask(await readSession(bearer(request)), body));
+}));
+
+app.post("/me/projects/tasks/status", route(async (request, response) => {
+  const body = z.object({
+    taskId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .refine((value) => value.toLowerCase() !== "null" && value.toLowerCase() !== "undefined", {
+        message: "A valid task id is required.",
+      }),
+    status: z.string().trim().min(1).max(64),
+    title: z.string().trim().max(300).optional().nullable(),
+    projectName: z.string().trim().max(200).optional().nullable(),
+    workNote: z.string().max(2000).optional().nullable(),
+  }).parse(request.body ?? {});
+  response.json(await updateWorkTaskStatus(await readSession(bearer(request)), body));
+}));
+
+app.get("/me/reports/daily", route(async (request, response) => {
+  const date = String(request.query.date ?? "").trim() || null;
+  response.json(await dailyAttendancePmReport(await readSession(bearer(request)), date));
+}));
+
+app.get("/me/reports/weekly", route(async (request, response) => {
+  const weekStart = String(request.query.weekStart ?? "").trim() || null;
+  response.json(await weeklyManagerPmReport(await readSession(bearer(request)), weekStart));
+}));
+
+app.post("/me/reports/weekly/email", route(async (request, response) => {
+  const body = z.object({ weekStart: z.string().trim().optional().nullable() }).parse(request.body ?? {});
+  response.json(await emailWeeklyManagerPmReport(await readSession(bearer(request)), body.weekStart));
+}));
+
+/** Project Control calls this before allowing write actions. */
+app.get("/integrations/pm/attendance-status", route(async (request, response) => {
+  requirePmIntegration(request);
+  const employeeCode = String(request.query.employeeCode ?? "").trim() || null;
+  const email = String(request.query.email ?? "").trim() || null;
+  const workDate = String(request.query.workDate ?? "").trim() || null;
+  response.json(await verifyAttendanceForPm({ employeeCode, email, workDate }));
 }));
 
 app.get("/me/shift", route(async (request, response) => {
@@ -429,6 +518,7 @@ writeEnvExample();
 await initDatabase();
 await seed();
 startWorkListReminderWorker();
+startPmSyncWorker();
 app.listen(port, "0.0.0.0", () => {
   console.log(`Attendify API listening on http://0.0.0.0:${port}`);
   console.log(`Phone / LAN: use http://<this-pc-wifi-ip>:${port}`);

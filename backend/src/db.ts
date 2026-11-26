@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import mysql, { type Pool, type PoolConnection, type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
@@ -348,6 +349,75 @@ CREATE TABLE IF NOT EXISTS work_list_reminders (
   CONSTRAINT work_list_reminders_kind_chk CHECK (kind IN ('FOUR_HOUR_PUSH')),
   CONSTRAINT work_list_reminders_status_chk CHECK (status IN ('PENDING', 'CLAIMED', 'SENT', 'SKIPPED', 'FAILED_TERMINAL'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS work_progress_updates (
+  employee_id VARCHAR(64) NOT NULL,
+  work_date VARCHAR(10) NOT NULL,
+  updated_at VARCHAR(40) NOT NULL,
+  source VARCHAR(24) NOT NULL DEFAULT 'ATTENDIFY_APP',
+  PRIMARY KEY (employee_id, work_date),
+  CONSTRAINT work_progress_updates_employee_fk FOREIGN KEY (employee_id) REFERENCES employees(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS work_task_updates (
+  id VARCHAR(64) PRIMARY KEY,
+  employee_id VARCHAR(64) NOT NULL,
+  work_date VARCHAR(10) NOT NULL,
+  task_key VARCHAR(120) NOT NULL,
+  title VARCHAR(300) NULL,
+  status VARCHAR(64) NOT NULL,
+  project_name VARCHAR(200) NULL,
+  work_note TEXT NULL,
+  updated_at VARCHAR(40) NOT NULL,
+  UNIQUE KEY work_task_updates_uniq (employee_id, work_date, task_key),
+  KEY work_task_updates_emp_date (employee_id, work_date),
+  CONSTRAINT work_task_updates_employee_fk FOREIGN KEY (employee_id) REFERENCES employees(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS pm_sync_outbox (
+  id VARCHAR(64) PRIMARY KEY,
+  dedupe_key VARCHAR(190) NOT NULL,
+  kind VARCHAR(24) NOT NULL,
+  employee_id VARCHAR(64) NOT NULL,
+  work_date VARCHAR(10) NOT NULL,
+  payload MEDIUMTEXT NOT NULL,
+  version INT NOT NULL DEFAULT 1,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  attempt_count INT NOT NULL DEFAULT 0,
+  next_attempt_at VARCHAR(40) NULL,
+  last_error VARCHAR(160) NULL,
+  sent_at VARCHAR(40) NULL,
+  created_at VARCHAR(40) NOT NULL,
+  updated_at VARCHAR(40) NOT NULL,
+  UNIQUE KEY pm_sync_outbox_dedupe (dedupe_key),
+  KEY pm_sync_outbox_due_idx (status, next_attempt_at),
+  CONSTRAINT pm_sync_outbox_employee_fk FOREIGN KEY (employee_id) REFERENCES employees(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS work_created_tasks (
+  id VARCHAR(64) PRIMARY KEY,
+  employee_id VARCHAR(64) NOT NULL,
+  task_key VARCHAR(120) NOT NULL,
+  project_name VARCHAR(200) NOT NULL,
+  title VARCHAR(300) NOT NULL,
+  created_work_date VARCHAR(10) NOT NULL,
+  created_at VARCHAR(40) NOT NULL,
+  pm_task_key VARCHAR(120) NULL,
+  UNIQUE KEY work_created_tasks_key (employee_id, task_key),
+  KEY work_created_tasks_emp (employee_id, pm_task_key),
+  CONSTRAINT work_created_tasks_employee_fk FOREIGN KEY (employee_id) REFERENCES employees(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS work_task_note_entries (
+  id VARCHAR(64) PRIMARY KEY,
+  employee_id VARCHAR(64) NOT NULL,
+  work_date VARCHAR(10) NOT NULL,
+  task_key VARCHAR(120) NOT NULL,
+  body TEXT NOT NULL,
+  created_at VARCHAR(40) NOT NULL,
+  KEY work_task_note_entries_lookup (employee_id, work_date, task_key, created_at),
+  CONSTRAINT work_task_note_entries_employee_fk FOREIGN KEY (employee_id) REFERENCES employees(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `;
 
 export async function initDatabase(): Promise<void> {
@@ -363,6 +433,53 @@ export async function initDatabase(): Promise<void> {
   );
   if (!columns.some((row) => text(row, "name") === "phone")) {
     await run("ALTER TABLE employees ADD COLUMN phone VARCHAR(40) NULL");
+  }
+
+  const workTaskColumns = await many(
+    `SELECT COLUMN_NAME AS name
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'work_task_updates'`,
+    config.database,
+  );
+  if (
+    workTaskColumns.length > 0 &&
+    !workTaskColumns.some((row) => text(row, "name") === "work_note")
+  ) {
+    await run("ALTER TABLE work_task_updates ADD COLUMN work_note TEXT NULL");
+  }
+  if (
+    workTaskColumns.length > 0 &&
+    !workTaskColumns.some((row) => text(row, "name") === "pm_still_assigned")
+  ) {
+    await run("ALTER TABLE work_task_updates ADD COLUMN pm_still_assigned TINYINT NULL");
+  }
+
+  // One-time: keep today's saved note as the first chat message.
+  const legacyNotes = await many(
+    `SELECT u.employee_id, u.work_date, u.task_key, u.work_note, u.updated_at
+     FROM work_task_updates u
+     WHERE u.work_note IS NOT NULL AND TRIM(u.work_note) <> ''
+       AND NOT EXISTS (
+         SELECT 1 FROM work_task_note_entries e
+         WHERE e.employee_id = u.employee_id
+           AND e.work_date = u.work_date
+           AND e.task_key = u.task_key
+       )`,
+  );
+  for (const row of legacyNotes) {
+    const body = String(row.work_note ?? "").trim();
+    if (!body || body.toLowerCase() === "null") continue;
+    const createdAt = String(row.updated_at ?? "").trim() || new Date().toISOString();
+    await run(
+      `INSERT INTO work_task_note_entries (id, employee_id, work_date, task_key, body, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      randomUUID(),
+      String(row.employee_id),
+      String(row.work_date),
+      String(row.task_key),
+      body,
+      createdAt,
+    );
   }
 
   const eventColumns = await many(

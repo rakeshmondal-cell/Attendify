@@ -16,7 +16,17 @@ import {
   sendOtpEmail,
   sendPasscodeChangedEmail,
 } from "./mail.js";
-import { evaluateWorkListForEmployee, pmWebAppUrl, WORK_LIST_MESSAGE } from "./pmClient.js";
+import {
+  evaluateWorkListForEmployee,
+  fetchPmAttendanceTasks,
+  findMatchedPmUser,
+  mapPmUserWorkload,
+  lookupPmProgress,
+  pmProgressByEmployee,
+  pmWebAppUrl,
+  WORK_LIST_MESSAGE,
+} from "./pmClient.js";
+import { buildDummyWorkload, dummyPmEnabled, dummyPmWebUrl } from "./dummyPmData.js";
 import {
   addDays,
   arrivalStatus,
@@ -30,6 +40,7 @@ import {
   todayInZone,
 } from "./time.js";
 import { saveDeviceFcmToken, scheduleFourHourWorkListReminder, skipOpenWorkListReminders } from "./workListReminders.js";
+import { enqueueAttendance, enqueueTaskCreate, enqueueTaskUpdate } from "./pmSync.js";
 
 const OTP_MINUTES = 5;
 const OTP_RESEND_SECONDS = 45;
@@ -183,15 +194,17 @@ export async function seed(): void {
      WHERE employee_code = 'MSR443' OR full_name LIKE 'Joydeep%'
      ORDER BY created_at ASC LIMIT 1`,
   );
-  if (joydeep) {
+  // Bootstrap only on a fresh database. Seed runs on every API start, so an unguarded
+  // version would undo reporting-manager and manager-access changes made in HR web.
+  const reportingLinesExist = await one("SELECT id FROM employees WHERE manager_id IS NOT NULL LIMIT 1");
+  if (joydeep && !reportingLinesExist) {
     await run("UPDATE employees SET is_manager = 0 WHERE id <> ?", text(joydeep, "id"));
     await run("UPDATE employees SET is_manager = 1, manager_id = NULL WHERE id = ?", text(joydeep, "id"));
     await run(
       `UPDATE employees
        SET manager_id = ?
        WHERE id <> ?
-         AND (manager_id IS NULL OR manager_id <> ?)`,
-      text(joydeep, "id"),
+         AND manager_id IS NULL`,
       text(joydeep, "id"),
       text(joydeep, "id"),
     );
@@ -1747,6 +1760,7 @@ export async function checkIn(session: SessionContext, input: {
       input.requestId,
     );
     await audit(session.user.id, "CHECK_IN", "attendance_session", sessionId, `${arrival}; ${place.addressLine}`);
+    await enqueueAttendance(sessionId);
     await scheduleFourHourWorkListReminder({
       employeeId: actor.employeeId,
       assignmentId: assignment.assignmentId,
@@ -1817,6 +1831,7 @@ export async function checkOut(session: SessionContext, input: {
       input.requestId,
     );
     await audit(session.user.id, "CHECK_OUT", "attendance_session", text(open, "id"), `${netMinutes} minutes; ${place.addressLine}`);
+    await enqueueAttendance(text(open, "id"));
     await skipOpenWorkListReminders({
       employeeId: actor.employeeId,
       workDate: assignment.workDate,
@@ -1834,25 +1849,190 @@ export async function registerPushToken(session: SessionContext, tokenRaw: strin
   return { ok: true };
 }
 
+async function hasLocalWorkProgress(employeeId: string, workDate: string): Promise<boolean> {
+  const row = await one(
+    "SELECT employee_id FROM work_progress_updates WHERE employee_id = ? AND work_date = ?",
+    employeeId,
+    workDate,
+  );
+  return Boolean(row);
+}
+
+/** Projects and tasks the person added in Attendify. Kept on every later day until Project Control returns them. */
+async function loadCreatedTasks(
+  employeeId: string,
+): Promise<{ taskKey: string; projectName: string; title: string; pendingPm: boolean }[]> {
+  const rows = await many(
+    `SELECT task_key, project_name, title, pm_task_key
+     FROM work_created_tasks
+     WHERE employee_id = ?
+     ORDER BY created_at ASC`,
+    employeeId,
+  );
+  return rows.map((row) => {
+    const pmKey = optionalText(row, "pm_task_key");
+    return {
+      // Once Project Control confirmed it, the task is stored under the PM key.
+      taskKey: pmKey ?? text(row, "task_key"),
+      projectName: text(row, "project_name"),
+      title: text(row, "title"),
+      pendingPm: pmKey == null,
+    };
+  });
+}
+
+async function loadLocalTaskUpdates(
+  employeeId: string,
+  workDate: string,
+): Promise<
+  Map<string, { title: string | null; status: string; projectName: string | null; workNote: string | null; stillAssigned: boolean | null }>
+> {
+  const rows = await many(
+    `SELECT task_key, title, status, project_name, work_note, pm_still_assigned
+     FROM work_task_updates
+     WHERE employee_id = ? AND work_date = ?`,
+    employeeId,
+    workDate,
+  );
+  const map = new Map<
+    string,
+    { title: string | null; status: string; projectName: string | null; workNote: string | null; stillAssigned: boolean | null }
+  >();
+  for (const row of rows) {
+    map.set(text(row, "task_key"), {
+      title: optionalText(row, "title"),
+      status: text(row, "status"),
+      projectName: optionalText(row, "project_name"),
+      workNote: optionalText(row, "work_note"),
+      stillAssigned: readStillAssigned(row.pm_still_assigned),
+    });
+  }
+  return map;
+}
+
+function isClosedTaskStatus(status: string | null | undefined): boolean {
+  return Boolean(status && /done|closed|complete|completed|cancelled/i.test(status));
+}
+
+function readStillAssigned(value: unknown): boolean | null {
+  if (value == null) return null;
+  if (value === true || value === 1 || value === "1") return true;
+  if (value === false || value === 0 || value === "0") return false;
+  return null;
+}
+
+function taskIsClosed(status: string | null | undefined, stillAssigned: boolean | null | undefined): boolean {
+  if (stillAssigned === false) return true;
+  return isClosedTaskStatus(status);
+}
+
+/** Newest saved status per task, across every work date. A Done row stays closed until a later Open. */
+async function loadLatestTaskStatuses(
+  employeeId: string,
+): Promise<
+  Map<string, { title: string | null; status: string; projectName: string | null; workNote: string | null; stillAssigned: boolean | null }>
+> {
+  const rows = await many(
+    `SELECT task_key, title, status, project_name, work_note, pm_still_assigned, updated_at
+     FROM work_task_updates
+     WHERE employee_id = ?
+     ORDER BY updated_at DESC, work_date DESC`,
+    employeeId,
+  );
+  const map = new Map<
+    string,
+    { title: string | null; status: string; projectName: string | null; workNote: string | null; stillAssigned: boolean | null }
+  >();
+  for (const row of rows) {
+    const key = text(row, "task_key");
+    if (map.has(key)) continue;
+    map.set(key, {
+      title: optionalText(row, "title"),
+      status: text(row, "status"),
+      projectName: optionalText(row, "project_name"),
+      workNote: optionalText(row, "work_note"),
+      stillAssigned: readStillAssigned(row.pm_still_assigned),
+    });
+  }
+  return map;
+}
+
+async function loadTaskNotes(
+  employeeId: string,
+  workDate: string,
+): Promise<Map<string, { id: string; text: string; createdAt: string }[]>> {
+  const rows = await many(
+    `SELECT id, task_key, body, created_at
+     FROM work_task_note_entries
+     WHERE employee_id = ? AND work_date = ?
+     ORDER BY created_at ASC, id ASC`,
+    employeeId,
+    workDate,
+  );
+  const map = new Map<string, { id: string; text: string; createdAt: string }[]>();
+  for (const row of rows) {
+    const body = optionalText(row, "body")?.trim() ?? "";
+    if (!body || body.toLowerCase() === "null") continue;
+    const key = text(row, "task_key");
+    const list = map.get(key) ?? [];
+    list.push({ id: text(row, "id"), text: body, createdAt: text(row, "created_at") });
+    map.set(key, list);
+  }
+  return map;
+}
+
 export async function getWorkListStatus(session: SessionContext): Promise<Record<string, unknown>> {
   const actor = await requireEmployee(session);
   const open = await one(
     "SELECT * FROM attendance_sessions WHERE employee_id = ? AND status = 'OPEN'",
     actor.employeeId,
   );
+  // Prefer OPEN session work date; else today's IST date for local progress after check-out.
+  let workDate = todayInZone("Asia/Kolkata");
+  if (open) {
+    const assignment = await loadAssignment(text(open, "assignment_id"));
+    workDate = assignment.workDate;
+  } else {
+    const closedToday = await one(
+      `SELECT a.work_date
+       FROM attendance_sessions s
+       JOIN shift_assignments a ON a.id = s.assignment_id
+       WHERE s.employee_id = ? AND a.work_date = ?
+       ORDER BY s.check_in_at DESC
+       LIMIT 1`,
+      actor.employeeId,
+      workDate,
+    );
+    if (closedToday) workDate = text(closedToday, "work_date");
+  }
+
+  if (await hasLocalWorkProgress(actor.employeeId, workDate)) {
+    return {
+      status: "UPDATED",
+      reminderDue: false,
+      message: null,
+      pmWebUrl: pmWebAppUrl(),
+      workDate,
+      reason: "ATTENDIFY_APP_PROGRESS",
+      updatedInApp: true,
+    };
+  }
+
   if (!open) {
     return {
       status: "UNAVAILABLE",
       reminderDue: false,
       message: null,
       pmWebUrl: pmWebAppUrl(),
+      workDate,
       reason: "NO_OPEN_SESSION",
+      updatedInApp: false,
     };
   }
-  const assignment = await loadAssignment(text(open, "assignment_id"));
+
   const employee = await getEmployee(actor.employeeId);
   const evaluated = await evaluateWorkListForEmployee({
-    workDate: assignment.workDate,
+    workDate,
     employeeEmail: employee.email,
     employeeCode: employee.employeeCode,
   });
@@ -1870,9 +2050,816 @@ export async function getWorkListStatus(session: SessionContext): Promise<Record
     reminderDue: evaluated.status === "PENDING",
     message: evaluated.status === "PENDING" ? WORK_LIST_MESSAGE : null,
     pmWebUrl: evaluated.pmWebUrl,
-    workDate: assignment.workDate,
+    workDate,
     reason: evaluated.reason,
+    updatedInApp: false,
   };
+}
+
+/** Project Control calls this to decide write eligibility (server-side attendance gate). */
+export async function verifyAttendanceForPm(input: {
+  employeeCode?: string | null;
+  email?: string | null;
+  workDate?: string | null;
+}): Promise<Record<string, unknown>> {
+  const code = (input.employeeCode ?? "").trim();
+  const email = (input.email ?? "").trim().toLowerCase();
+  if (!code && !email) {
+    throw new HttpError(400, "INVALID_BODY", "Provide employeeCode or email.");
+  }
+  const workDate = (input.workDate ?? "").trim() || todayInZone("Asia/Kolkata");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+    throw new HttpError(400, "INVALID_DATE", "Use workDate as YYYY-MM-DD.");
+  }
+
+  const employee = code
+    ? await one(
+        `SELECT e.id, e.employee_code, e.full_name, u.email
+         FROM employees e JOIN users u ON u.id = e.user_id
+         WHERE u.status = 'ACTIVE' AND e.employee_code = ?
+         LIMIT 1`,
+        code,
+      )
+    : await one(
+        `SELECT e.id, e.employee_code, e.full_name, u.email
+         FROM employees e JOIN users u ON u.id = e.user_id
+         WHERE u.status = 'ACTIVE' AND LOWER(u.email) = ?
+         LIMIT 1`,
+        email,
+      );
+  if (!employee) {
+    return {
+      found: false,
+      checkedIn: false,
+      canWrite: false,
+      sessionStatus: "NONE",
+      workDate,
+      reason: "EMPLOYEE_NOT_FOUND",
+    };
+  }
+
+  const sessionRow = await one(
+    `SELECT s.id, s.status, s.check_in_at, s.check_out_at, a.work_date
+     FROM attendance_sessions s
+     JOIN shift_assignments a ON a.id = s.assignment_id
+     WHERE s.employee_id = ? AND a.work_date = ?
+     ORDER BY CASE s.status WHEN 'OPEN' THEN 0 ELSE 1 END, s.check_in_at DESC
+     LIMIT 1`,
+    text(employee, "id"),
+    workDate,
+  );
+
+  const status = sessionRow ? text(sessionRow, "status") : "NONE";
+  const checkedIn = status === "OPEN" || status === "CLOSED";
+  const canWrite = status === "OPEN";
+  return {
+    found: true,
+    employeeCode: text(employee, "employee_code"),
+    email: text(employee, "email"),
+    fullName: text(employee, "full_name"),
+    workDate,
+    checkedIn,
+    canWrite,
+    sessionStatus: status,
+    checkInAt: sessionRow ? optionalText(sessionRow, "check_in_at") : null,
+    checkOutAt: sessionRow ? optionalText(sessionRow, "check_out_at") : null,
+    sessionId: sessionRow ? text(sessionRow, "id") : null,
+    reason: canWrite ? "OPEN_SESSION" : checkedIn ? "CHECKED_OUT" : "NOT_CHECKED_IN",
+  };
+}
+
+/** Allocations + tasks from Project Control for the signed-in employee. */
+export async function myProjects(session: SessionContext): Promise<Record<string, unknown>> {
+  const actor = await requireEmployee(session);
+  const employee = await getEmployee(actor.employeeId);
+  const open = await one(
+    "SELECT * FROM attendance_sessions WHERE employee_id = ? AND status = 'OPEN'",
+    actor.employeeId,
+  );
+  let workDate = todayInZone("Asia/Kolkata");
+  if (open) {
+    const assignment = await loadAssignment(text(open, "assignment_id"));
+    workDate = assignment.workDate;
+  }
+  const fetched = await fetchPmAttendanceTasks(workDate);
+  const matched = findMatchedPmUser(fetched.response, employee.email, employee.employeeCode);
+  let workload = mapPmUserWorkload(matched);
+  let message = open
+    ? "You can update Project Control while checked in (subject to your PM role)."
+    : "Check in to unlock Project Control write actions. Viewing allocations may still be limited until PM sync succeeds.";
+  let usingDummy = false;
+  // TEMPORARY: inject dummy only when PM responded and this employee is unmatched
+  // (do not hide real PM outages with demo data).
+  if (dummyPmEnabled() && fetched.response && !fetched.error && !matched) {
+    const dummy = buildDummyWorkload(workDate);
+    workload = {
+      progressUpdatedToday: dummy.progressUpdatedToday,
+      openTaskCount: dummy.openTaskCount,
+      projects: dummy.projects,
+      tasks: dummy.tasks,
+    };
+    message = dummy.message;
+    usingDummy = true;
+  }
+
+  const localProgress = await hasLocalWorkProgress(actor.employeeId, workDate);
+  const localTasks = await loadLocalTaskUpdates(actor.employeeId, workDate);
+  if (localTasks.size > 0) {
+    const seen = new Set<string>();
+    const mergedTasks = workload.tasks.map((task) => {
+      const key = task.id ?? task.title;
+      seen.add(key);
+      const local = localTasks.get(key);
+      if (!local) return task;
+      return {
+        ...task,
+        status: local.status,
+        title: local.title?.trim() || task.title,
+        // PM is the source of truth for project name; local copy only fills gaps.
+        projectName: task.projectName ?? local.projectName,
+        workNote: local.workNote,
+        stillAssigned: local.stillAssigned,
+      };
+    });
+    for (const [key, local] of localTasks) {
+      if (seen.has(key)) continue;
+      mergedTasks.push({
+        id: key,
+        title: local.title?.trim() || key,
+        status: local.status,
+        projectName: local.projectName,
+        dueDate: null,
+        workNote: local.workNote,
+        stillAssigned: local.stillAssigned,
+      });
+    }
+    workload = { ...workload, tasks: mergedTasks };
+    // Recompute open counts from merged task statuses.
+    const openTaskCount = workload.tasks.filter(
+      (task) => !task.status || !/done|closed|complete|completed|cancelled/i.test(task.status),
+    ).length;
+    const projectCounts = new Map<string, { taskCount: number; openTaskCount: number }>();
+    for (const task of workload.tasks) {
+      const name = task.projectName ?? "Assigned work";
+      const bucket = projectCounts.get(name) ?? { taskCount: 0, openTaskCount: 0 };
+      bucket.taskCount += 1;
+      if (!task.status || !/done|closed|complete|completed|cancelled/i.test(task.status)) {
+        bucket.openTaskCount += 1;
+      }
+      projectCounts.set(name, bucket);
+    }
+    workload = {
+      ...workload,
+      openTaskCount,
+      projects:
+        projectCounts.size > 0
+          ? [...projectCounts.entries()].map(([name, counts]) => ({
+              name,
+              taskCount: counts.taskCount,
+              openTaskCount: counts.openTaskCount,
+            }))
+          : workload.projects,
+    };
+  }
+
+  const latestStatuses = await loadLatestTaskStatuses(actor.employeeId);
+  const createdTasks = await loadCreatedTasks(actor.employeeId);
+  const pendingCreatedKeys = new Set(createdTasks.filter((c) => c.pendingPm).map((c) => c.taskKey));
+  {
+    const have = new Set(workload.tasks.map((task) => task.id ?? task.title));
+    const extra = createdTasks
+      .filter((created) => !have.has(created.taskKey))
+      .map((created) => ({
+        id: created.taskKey,
+        title: created.title,
+        status: latestStatuses.get(created.taskKey)?.status ?? "Open",
+        projectName: created.projectName,
+        dueDate: null,
+        workNote: latestStatuses.get(created.taskKey)?.workNote ?? null,
+        stillAssigned: latestStatuses.get(created.taskKey)?.stillAssigned ?? null,
+      }));
+    if (extra.length > 0) workload = { ...workload, tasks: [...workload.tasks, ...extra] };
+  }
+  const seenTaskKeys = new Set(workload.tasks.map((task) => task.id ?? task.title));
+  const tasksWithClosure = workload.tasks.map((task) => {
+    const latest = latestStatuses.get(task.id ?? task.title);
+    if (!latest || !taskIsClosed(latest.status, latest.stillAssigned)) return task;
+    return {
+      ...task,
+      status: latest.status,
+      projectName: task.projectName ?? latest.projectName,
+      stillAssigned: latest.stillAssigned,
+    };
+  });
+  for (const [key, latest] of latestStatuses) {
+    if (!taskIsClosed(latest.status, latest.stillAssigned) || seenTaskKeys.has(key)) continue;
+    tasksWithClosure.push({
+      id: key,
+      title: latest.title?.trim() || key,
+      status: latest.status,
+      projectName: latest.projectName,
+      dueDate: null,
+      workNote: latest.workNote,
+      stillAssigned: latest.stillAssigned,
+    });
+  }
+  const openTaskCount = tasksWithClosure.filter((task) => !taskIsClosed(task.status, task.stillAssigned)).length;
+  const projectCounts = new Map<string, { taskCount: number; openTaskCount: number }>();
+  for (const task of tasksWithClosure) {
+    const name = task.projectName ?? "Assigned work";
+    const bucket = projectCounts.get(name) ?? { taskCount: 0, openTaskCount: 0 };
+    bucket.taskCount += 1;
+    if (!taskIsClosed(task.status, task.stillAssigned)) bucket.openTaskCount += 1;
+    projectCounts.set(name, bucket);
+  }
+  workload = {
+    ...workload,
+    tasks: tasksWithClosure,
+    openTaskCount,
+    projects:
+      projectCounts.size > 0
+        ? [...projectCounts.entries()].map(([name, counts]) => ({
+            name,
+            taskCount: counts.taskCount,
+            openTaskCount: counts.openTaskCount,
+          }))
+        : workload.projects,
+  };
+
+  const noteMap = await loadTaskNotes(actor.employeeId, workDate);
+  workload = {
+    ...workload,
+    tasks: workload.tasks.map((task) => ({
+      ...task,
+      pendingPm: Boolean(task.id && pendingCreatedKeys.has(task.id)),
+      notes: noteMap.get(task.id ?? "") ?? (task.id ? [] : noteMap.get(task.title) ?? []),
+    })),
+  };
+
+  if (localProgress) {
+    workload = { ...workload, progressUpdatedToday: true };
+    if (open) {
+      message = "Progress marked updated in Attendify. You can still open Project Control for full edits.";
+    }
+  } else if (open) {
+    message =
+      "Checked in. Update tasks here or open Project Control. Marking progress here counts for today's work list.";
+  }
+
+  return {
+    workDate,
+    writeEligible: Boolean(open),
+    sessionStatus: open ? "OPEN" : "NONE",
+    pmConfigured: fetched.error !== "PM_NOT_CONFIGURED",
+    pmError: fetched.error,
+    matched: Boolean(matched),
+    dummyPm: usingDummy,
+    progressUpdatedToday: workload.progressUpdatedToday,
+    updatedInApp: localProgress,
+    openTaskCount: workload.openTaskCount,
+    projects: workload.projects,
+    tasks: workload.tasks,
+    pmWebUrl: (usingDummy ? dummyPmWebUrl() : null) ?? pmWebAppUrl(),
+    message,
+  };
+}
+
+async function requireOpenWorkDate(session: SessionContext): Promise<{ employeeId: string; workDate: string }> {
+  const actor = await requireEmployee(session);
+  const open = await one(
+    "SELECT * FROM attendance_sessions WHERE employee_id = ? AND status = 'OPEN'",
+    actor.employeeId,
+  );
+  if (!open) {
+    throw new HttpError(409, "NOT_CHECKED_IN", "Check in before updating work progress in the app.");
+  }
+  const assignment = await loadAssignment(text(open, "assignment_id"));
+  return { employeeId: actor.employeeId, workDate: assignment.workDate };
+}
+
+/** In-app: mark today's work-list progress updated (OPEN session required). */
+export async function markWorkProgressUpdated(session: SessionContext): Promise<Record<string, unknown>> {
+  const { employeeId, workDate } = await requireOpenWorkDate(session);
+  const stamp = nowIso();
+  await run(
+    `INSERT INTO work_progress_updates (employee_id, work_date, updated_at, source)
+     VALUES (?, ?, ?, 'ATTENDIFY_APP')
+     ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), source = VALUES(source)`,
+    employeeId,
+    workDate,
+    stamp,
+  );
+  await audit(
+    session.user.id,
+    "WORK_PROGRESS_UPDATED",
+    "work_progress_updates",
+    `${employeeId}:${workDate}`,
+    "ATTENDIFY_APP",
+  );
+  await skipOpenWorkListReminders({
+    employeeId,
+    workDate,
+    reason: "PROGRESS_UPDATED_IN_APP",
+  });
+  return myProjects(session);
+}
+
+/** In-app: add a new project with its first task (OPEN session required). Queued for Project Control. */
+export async function createWorkTask(
+  session: SessionContext,
+  input: { projectName: string; title: string; workNote?: string | null },
+): Promise<Record<string, unknown>> {
+  const { employeeId, workDate } = await requireOpenWorkDate(session);
+  const projectName = input.projectName.trim();
+  const title = input.title.trim();
+  if (!projectName || projectName.length > 120) {
+    throw new HttpError(400, "INVALID_BODY", "Enter a project name or code (up to 120 characters).");
+  }
+  if (!title || title.length > 300) {
+    throw new HttpError(400, "INVALID_BODY", "Enter a task title (up to 300 characters).");
+  }
+  const noteRaw = input.workNote == null ? "" : String(input.workNote).trim();
+  if (noteRaw.length > 2000) {
+    throw new HttpError(400, "INVALID_BODY", "Work note must be 2000 characters or fewer.");
+  }
+  const note = noteRaw && noteRaw.toLowerCase() !== "null" ? noteRaw : null;
+
+  const duplicate = await one(
+    `SELECT task_key FROM work_created_tasks
+     WHERE employee_id = ? AND LOWER(project_name) = LOWER(?) AND LOWER(title) = LOWER(?) AND pm_task_key IS NULL`,
+    employeeId,
+    projectName,
+    title,
+  );
+  if (duplicate) {
+    throw new HttpError(409, "ALREADY_ADDED", "You already added this task. Open it from Assigned projects.");
+  }
+
+  const taskKey = `NEW-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const stamp = nowIso();
+  await run(
+    `INSERT INTO work_created_tasks (id, employee_id, task_key, project_name, title, created_work_date, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    randomUUID(),
+    employeeId,
+    taskKey,
+    projectName,
+    title,
+    workDate,
+    stamp,
+  );
+  await run(
+    `INSERT INTO work_task_updates
+     (id, employee_id, work_date, task_key, title, status, project_name, work_note, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'Open', ?, ?, ?)`,
+    randomUUID(),
+    employeeId,
+    workDate,
+    taskKey,
+    title,
+    projectName,
+    note,
+    stamp,
+  );
+  if (note) {
+    await run(
+      `INSERT INTO work_task_note_entries (id, employee_id, work_date, task_key, body, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      randomUUID(),
+      employeeId,
+      workDate,
+      taskKey,
+      note,
+      stamp,
+    );
+    await run(
+      `INSERT INTO work_progress_updates (employee_id, work_date, updated_at, source)
+       VALUES (?, ?, ?, 'ATTENDIFY_APP')
+       ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), source = VALUES(source)`,
+      employeeId,
+      workDate,
+      stamp,
+    );
+  }
+  await audit(session.user.id, "WORK_TASK_CREATED", "work_created_tasks", taskKey, `${projectName}: ${title}`);
+  await enqueueTaskCreate({
+    employeeId,
+    workDate,
+    taskKey,
+    projectName,
+    title,
+    status: "Open",
+    workNote: note,
+    createdAt: stamp,
+  });
+  return myProjects(session);
+}
+
+/** In-app: update a My-task status/note (OPEN session required). Also marks progress updated. */
+export async function updateWorkTaskStatus(
+  session: SessionContext,
+  input: {
+    taskId: string;
+    status: string;
+    title?: string | null;
+    projectName?: string | null;
+    workNote?: string | null;
+  },
+): Promise<Record<string, unknown>> {
+  const { employeeId, workDate } = await requireOpenWorkDate(session);
+  const taskKey = input.taskId.trim();
+  if (!taskKey) throw new HttpError(400, "INVALID_BODY", "taskId is required.");
+  const status = input.status.trim();
+  if (!status || status.length > 64) throw new HttpError(400, "INVALID_BODY", "Provide a valid status.");
+  const workNoteRaw = input.workNote == null ? null : String(input.workNote).trim();
+  if (workNoteRaw && workNoteRaw.length > 2000) {
+    throw new HttpError(400, "INVALID_BODY", "Work note must be 2000 characters or fewer.");
+  }
+  const workNote = workNoteRaw || null;
+  const stamp = nowIso();
+  const noteProvided = input.workNote !== undefined;
+  const noteBody = noteProvided && workNote && workNote.toLowerCase() !== "null" ? workNote : null;
+  const existing = await one(
+    "SELECT id, work_note FROM work_task_updates WHERE employee_id = ? AND work_date = ? AND task_key = ?",
+    employeeId,
+    workDate,
+    taskKey,
+  );
+  // Status-only taps keep the latest note. A blank Save does not add or erase a message.
+  const previousNote = existing ? optionalText(existing, "work_note") : null;
+  const nextNote = noteBody ?? previousNote;
+  if (existing) {
+    await run(
+      `UPDATE work_task_updates
+       SET status = ?, title = ?, project_name = ?, work_note = ?, pm_still_assigned = NULL, updated_at = ?
+       WHERE id = ?`,
+      status,
+      (input.title ?? "").trim() || null,
+      (input.projectName ?? "").trim() || null,
+      nextNote,
+      stamp,
+      text(existing, "id"),
+    );
+  } else {
+    await run(
+      `INSERT INTO work_task_updates
+       (id, employee_id, work_date, task_key, title, status, project_name, work_note, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      randomUUID(),
+      employeeId,
+      workDate,
+      taskKey,
+      (input.title ?? "").trim() || null,
+      status,
+      (input.projectName ?? "").trim() || null,
+      nextNote,
+      stamp,
+    );
+  }
+  await run(
+    `INSERT INTO work_progress_updates (employee_id, work_date, updated_at, source)
+     VALUES (?, ?, ?, 'ATTENDIFY_APP')
+     ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), source = VALUES(source)`,
+    employeeId,
+    workDate,
+    stamp,
+  );
+  if (noteBody) {
+    await run(
+      `INSERT INTO work_task_note_entries (id, employee_id, work_date, task_key, body, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      randomUUID(),
+      employeeId,
+      workDate,
+      taskKey,
+      noteBody,
+      stamp,
+    );
+  }
+  await audit(
+    session.user.id,
+    "WORK_TASK_STATUS",
+    "work_task_updates",
+    taskKey,
+    noteBody ? `${status}; note saved` : status,
+  );
+  await enqueueTaskUpdate({
+    employeeId,
+    workDate,
+    taskKey,
+    title: input.title,
+    projectName: input.projectName,
+    status,
+    workNote: nextNote,
+    updatedAt: stamp,
+  });
+  await skipOpenWorkListReminders({
+    employeeId,
+    workDate,
+    reason: "TASK_UPDATED_IN_APP",
+  });
+  return myProjects(session);
+}
+
+async function teamEmployeeRows(managerEmployeeId: string): Promise<
+  { id: string; fullName: string; employeeCode: string; email: string; department: string }[]
+> {
+  const rows = await many(
+    `SELECT e.id, e.full_name, e.employee_code, e.department, u.email
+     FROM employees e
+     JOIN users u ON u.id = e.user_id
+     WHERE e.manager_id = ? AND e.id <> ? AND u.status = 'ACTIVE'
+     ORDER BY e.full_name`,
+    managerEmployeeId,
+    managerEmployeeId,
+  );
+  return rows.map((row) => ({
+    id: text(row, "id"),
+    fullName: text(row, "full_name"),
+    employeeCode: text(row, "employee_code"),
+    email: text(row, "email"),
+    department: text(row, "department"),
+  }));
+}
+
+async function attendanceByEmployeeForDate(
+  workDate: string,
+  employeeIds: string[],
+): Promise<Map<string, { status: string; checkInAt: string | null; checkOutAt: string | null }>> {
+  const map = new Map<string, { status: string; checkInAt: string | null; checkOutAt: string | null }>();
+  if (employeeIds.length === 0) return map;
+  const placeholders = employeeIds.map(() => "?").join(",");
+  const rows = await many(
+    `SELECT s.employee_id, s.status, s.check_in_at, s.check_out_at
+     FROM attendance_sessions s
+     JOIN shift_assignments a ON a.id = s.assignment_id
+     WHERE a.work_date = ? AND s.employee_id IN (${placeholders})`,
+    workDate,
+    ...employeeIds,
+  );
+  for (const row of rows) {
+    const id = text(row, "employee_id");
+    const existing = map.get(id);
+    const status = text(row, "status");
+    if (!existing || status === "OPEN" || (existing.status !== "OPEN" && status === "CLOSED")) {
+      map.set(id, {
+        status,
+        checkInAt: optionalText(row, "check_in_at"),
+        checkOutAt: optionalText(row, "check_out_at"),
+      });
+    }
+  }
+  return map;
+}
+
+function formatClockLabel(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  return formatTimeInZone(iso, "Asia/Kolkata");
+}
+
+export async function dailyAttendancePmReport(
+  session: SessionContext,
+  workDateRaw?: string | null,
+): Promise<Record<string, unknown>> {
+  const actor = await requireManager(session);
+  const workDate = (workDateRaw ?? "").trim() || todayInZone("Asia/Kolkata");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+    throw new HttpError(400, "INVALID_DATE", "Use date as YYYY-MM-DD.");
+  }
+  const team = await teamEmployeeRows(actor.employeeId);
+  const attendance = await attendanceByEmployeeForDate(
+    workDate,
+    team.map((row) => row.id),
+  );
+  const fetched = await fetchPmAttendanceTasks(workDate);
+  const pmMap = pmProgressByEmployee(fetched.response);
+  const localUpdatedIds = new Set<string>();
+  if (team.length > 0) {
+    const placeholders = team.map(() => "?").join(",");
+    const localRows = await many(
+      `SELECT employee_id FROM work_progress_updates
+       WHERE work_date = ? AND employee_id IN (${placeholders})`,
+      workDate,
+      ...team.map((row) => row.id),
+    );
+    for (const row of localRows) localUpdatedIds.add(text(row, "employee_id"));
+  }
+
+  let presentCount = 0;
+  let pmUpdatedCount = 0;
+  let presentNoUpdateCount = 0;
+  const rows = team.map((member) => {
+    const att = attendance.get(member.id);
+    const present = Boolean(att);
+    const pm = lookupPmProgress(pmMap, member.employeeCode, member.email);
+    const localUpdated = localUpdatedIds.has(member.id);
+    const pmUpdated = localUpdated || pm?.progressUpdatedToday === true;
+    const pmKnown =
+      localUpdated || pm?.progressUpdatedToday === true || pm?.progressUpdatedToday === false;
+    if (present) presentCount += 1;
+    if (present && pmUpdated) pmUpdatedCount += 1;
+    if (present && pmKnown && !pmUpdated) presentNoUpdateCount += 1;
+    let exception: string | null = null;
+    if (fetched.error === "PM_NOT_CONFIGURED") exception = "PM_NOT_CONFIGURED";
+    else if (fetched.error) exception = fetched.error;
+    else if (present && !pm && !localUpdated) exception = "EMPLOYEE_UNMATCHED";
+    else if (present && !localUpdated && pm?.progressUpdatedToday == null) exception = "PROGRESS_FLAG_INVALID";
+    return {
+      employeeId: member.id,
+      employeeCode: member.employeeCode,
+      fullName: member.fullName,
+      department: member.department,
+      email: member.email,
+      checkedIn: present,
+      sessionStatus: att?.status ?? "NONE",
+      checkInAt: att?.checkInAt ?? null,
+      checkOutAt: att?.checkOutAt ?? null,
+      checkInLabel: formatClockLabel(att?.checkInAt),
+      checkOutLabel: formatClockLabel(att?.checkOutAt),
+      pmUpdate: present ? (pmUpdated ? "YES" : pmKnown ? "NO" : "UNAVAILABLE") : "—",
+      progressUpdatedToday: localUpdated ? true : (pm?.progressUpdatedToday ?? null),
+      updatedInApp: localUpdated,
+      openTaskCount: pm?.openTaskCount ?? null,
+      exception,
+    };
+  });
+
+  return {
+    workDate,
+    workDateLabel: formatDateLabel(workDate),
+    generatedAt: nowIso(),
+    pmError: fetched.error,
+    summary: {
+      teamSize: team.length,
+      presentCount,
+      pmUpdatedCount,
+      presentNoUpdateCount,
+    },
+    rows,
+  };
+}
+
+function mondayOf(isoDateValue: string): string {
+  const [y, m, d] = isoDateValue.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const weekday = date.getUTCDay();
+  const offset = weekday === 0 ? -6 : 1 - weekday;
+  date.setUTCDate(date.getUTCDate() + offset);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+export async function weeklyManagerPmReport(
+  session: SessionContext,
+  weekStartRaw?: string | null,
+): Promise<Record<string, unknown>> {
+  const actor = await requireManager(session);
+  const today = todayInZone("Asia/Kolkata");
+  let weekStart = (weekStartRaw ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) weekStart = mondayOf(today);
+  else weekStart = mondayOf(weekStart);
+  const days = Array.from({ length: 5 }, (_, index) => addDays(weekStart, index));
+  const team = await teamEmployeeRows(actor.employeeId);
+
+  const perDayPm = new Map<string, ReturnType<typeof pmProgressByEmployee>>();
+  const perDayErrors = new Map<string, string | null>();
+  for (const day of days) {
+    const fetched = await fetchPmAttendanceTasks(day);
+    perDayPm.set(day, pmProgressByEmployee(fetched.response));
+    perDayErrors.set(day, fetched.error);
+  }
+
+  const teamIds = team.map((row) => row.id);
+  const attendanceByDay = new Map<string, Map<string, { status: string; checkInAt: string | null; checkOutAt: string | null }>>();
+  for (const day of days) {
+    attendanceByDay.set(day, await attendanceByEmployeeForDate(day, teamIds));
+  }
+  const localByDay = new Map<string, Set<string>>();
+  if (teamIds.length > 0) {
+    const placeholders = teamIds.map(() => "?").join(",");
+    const dayPlaceholders = days.map(() => "?").join(",");
+    const localRows = await many(
+      `SELECT employee_id, work_date FROM work_progress_updates
+       WHERE work_date IN (${dayPlaceholders}) AND employee_id IN (${placeholders})`,
+      ...days,
+      ...teamIds,
+    );
+    for (const row of localRows) {
+      const day = text(row, "work_date");
+      const set = localByDay.get(day) ?? new Set<string>();
+      set.add(text(row, "employee_id"));
+      localByDay.set(day, set);
+    }
+  }
+
+  const employees = team.map((member) => {
+    const dayMarks: string[] = [];
+    let present = 0;
+    let pm = 0;
+    let noUpdate = 0;
+    let absent = 0;
+    for (const day of days) {
+      const att = attendanceByDay.get(day)?.get(member.id);
+      const presentDay = Boolean(att);
+      const pmRow = lookupPmProgress(perDayPm.get(day) ?? new Map(), member.employeeCode, member.email);
+      const localUpdated = localByDay.get(day)?.has(member.id) === true;
+      const updated = localUpdated || pmRow?.progressUpdatedToday === true;
+      const known =
+        localUpdated || pmRow?.progressUpdatedToday === true || pmRow?.progressUpdatedToday === false;
+      let mark = "A";
+      if (presentDay && updated) {
+        mark = "U";
+        present += 1;
+        pm += 1;
+      } else if (presentDay && known && !updated) {
+        mark = "N";
+        present += 1;
+        noUpdate += 1;
+      } else if (presentDay) {
+        mark = "P";
+        present += 1;
+      } else {
+        absent += 1;
+      }
+      dayMarks.push(mark);
+    }
+    return {
+      employeeId: member.id,
+      employeeCode: member.employeeCode,
+      fullName: member.fullName,
+      department: member.department,
+      daysPresent: present,
+      daysPmUpdated: pm,
+      daysPresentNoUpdate: noUpdate,
+      daysAbsent: absent,
+      dayMarks,
+    };
+  });
+
+  const highlights = employees
+    .filter((row) => row.daysPresentNoUpdate >= 2)
+    .map((row) => `${row.fullName} (${row.daysPresentNoUpdate} days)`);
+
+  const manager = await getEmployee(actor.employeeId);
+  return {
+    weekStart,
+    weekEnd: days[days.length - 1],
+    weekLabel: `${formatDateLabel(weekStart)} – ${formatDateLabel(days[days.length - 1]!)}`,
+    dayLabels: days.map((day) => formatDateLabel(day)),
+    days,
+    generatedAt: nowIso(),
+    managerName: manager.fullName,
+    managerEmail: manager.email,
+    summary: {
+      teamSize: team.length,
+      avgDaysPresent:
+        team.length === 0
+          ? 0
+          : Number(
+              (
+                employees.reduce((sum, row) => sum + row.daysPresent, 0) / team.length
+              ).toFixed(1),
+            ),
+      presentNoUpdateDays: employees.reduce((sum, row) => sum + row.daysPresentNoUpdate, 0),
+    },
+    highlights,
+    pmErrors: Object.fromEntries(days.map((day) => [day, perDayErrors.get(day) ?? null])),
+    employees,
+  };
+}
+
+export async function emailWeeklyManagerPmReport(
+  session: SessionContext,
+  weekStartRaw?: string | null,
+): Promise<Record<string, unknown>> {
+  const report = await weeklyManagerPmReport(session, weekStartRaw);
+  const managerEmail = String(report.managerEmail ?? "");
+  if (!managerEmail) throw new HttpError(400, "NO_MANAGER_EMAIL", "Manager email is missing.");
+  if (!mailConfigured()) {
+    return { emailed: false, reason: "MAIL_NOT_CONFIGURED", report };
+  }
+  const employees = (report.employees as Array<Record<string, unknown>>) ?? [];
+  const lines = [
+    `Attendify weekly attendance & Project Control update report`,
+    `Week: ${report.weekLabel}`,
+    `Manager: ${report.managerName}`,
+    "",
+    ...employees.map(
+      (row) =>
+        `${row.fullName} (${row.employeeCode}): present ${row.daysPresent}, PM updated ${row.daysPmUpdated}, present/no-update ${row.daysPresentNoUpdate}, absent ${row.daysAbsent} · days ${Array.isArray(row.dayMarks) ? row.dayMarks.join(" ") : ""}`,
+    ),
+    "",
+    `Highlights: ${
+      Array.isArray(report.highlights) && report.highlights.length
+        ? report.highlights.join("; ")
+        : "None"
+    }`,
+    "",
+    "U = present + PM update, N = present no update, P = present (PM unknown), A = absent",
+    "Generated by Attendify. Demonstration of PRD v1.1 weekly manager pack.",
+  ];
+  await sendHrAlertEmail([managerEmail], `Attendify weekly team report — ${report.weekLabel}`, lines.join("\n"));
+  await audit(session.user.id, "WEEKLY_PM_REPORT_EMAILED", "employee", session.employeeId, String(report.weekStart));
+  return { emailed: true, to: managerEmail, report };
 }
 
 export async function myProfile(session: SessionContext) {

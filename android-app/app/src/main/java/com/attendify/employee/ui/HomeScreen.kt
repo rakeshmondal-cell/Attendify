@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -24,18 +25,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -67,49 +68,40 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private enum class HomeTab { Home, Attendance, Team, Requests, Profile }
-private enum class BreakFlow { None, Setup }
+private enum class HomeTab { Home, Work, Attendance, Team, Profile }
 
 @Composable
 fun HomeScreen(state: UiState, viewModel: AttendifyViewModel) {
     var tab by remember { mutableStateOf(HomeTab.Home) }
-    var breakFlow by remember { mutableStateOf(BreakFlow.None) }
-
-    // When a break becomes active (or ends), leave the setup screen.
-    LaunchedEffect(state.onBreak) {
-        if (state.onBreak) breakFlow = BreakFlow.None
-    }
+    var refreshedAfterCheckout by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(AttendifyBackground)
             .statusBarsPadding()
-            .navigationBarsPadding(),
+            .navigationBarsPadding()
+            .imePadding(),
     ) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                tab == HomeTab.Home && state.onBreak -> BreakActiveScreen(
-                    state = state,
-                    viewModel = viewModel,
-                    onBack = { /* stay on break until ended */ },
-                )
-                tab == HomeTab.Home && breakFlow == BreakFlow.Setup -> BreakSetupScreen(
-                    state = state,
-                    viewModel = viewModel,
-                    onBack = { breakFlow = BreakFlow.None },
-                )
                 tab == HomeTab.Home -> {
-                    if (state.attendance.status == "OPEN" || state.attendance.status == "CLOSED") {
-                        TimeClockScreen(
-                            state = state,
-                            viewModel = viewModel,
-                            onTakeBreak = { breakFlow = BreakFlow.Setup },
-                        )
+                    // Only an OPEN session stays on the live time clock.
+                    // CLOSED returns to dashboard so check-in can appear again after refresh.
+                    if (state.attendance.status == "OPEN") {
+                        refreshedAfterCheckout = false
+                        TimeClockScreen(state = state, viewModel = viewModel)
                     } else {
+                        LaunchedEffect(state.attendance.status, refreshedAfterCheckout) {
+                            if (state.attendance.status == "CLOSED" && !refreshedAfterCheckout) {
+                                refreshedAfterCheckout = true
+                                viewModel.refreshHome()
+                            }
+                        }
                         HomeDashboard(state, viewModel)
                     }
                 }
+                tab == HomeTab.Work -> ProjectsTasksScreen(state, viewModel)
                 tab == HomeTab.Attendance -> Column(Modifier.fillMaxSize()) {
                     AttendanceHistoryScreen(state, viewModel)
                     if (!state.historyMessage.isNullOrBlank()) {
@@ -122,18 +114,13 @@ fun HomeScreen(state: UiState, viewModel: AttendifyViewModel) {
                     }
                 }
                 tab == HomeTab.Team -> TeamApprovalsHub(state, viewModel)
-                tab == HomeTab.Requests -> RequestsHubScreen(state, viewModel)
                 else -> ProfileHubScreen(state, viewModel)
             }
         }
         BottomNav(
             selected = tab,
             isManager = state.isManager,
-            onSelect = { next ->
-                // Leaving break setup via another tab cancels the setup flow.
-                if (next != HomeTab.Home) breakFlow = BreakFlow.None
-                tab = next
-            },
+            onSelect = { tab = it },
         )
     }
 }
@@ -463,17 +450,16 @@ private fun BottomNav(selected: HomeTab, isManager: Boolean, onSelect: (HomeTab)
             .fillMaxWidth()
             .shadow(16.dp, ambientColor = AttendifyCardShadow, spotColor = AttendifyCardShadow)
             .background(Color.White)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 4.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NavItem(HomeTab.Home, "Home", Icons.Outlined.Home, Icons.Filled.Home, selected, onSelect)
+        NavItem(HomeTab.Work, "Work", Icons.Outlined.Work, Icons.Filled.Work, selected, onSelect)
+        NavItem(HomeTab.Attendance, "Att.", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth, selected, onSelect)
         if (isManager) {
             NavItem(HomeTab.Team, "Team", Icons.Outlined.Groups, Icons.Filled.Groups, selected, onSelect)
-        } else {
-            NavItem(HomeTab.Attendance, "Attendance", Icons.Outlined.CalendarMonth, Icons.Filled.CalendarMonth, selected, onSelect)
         }
-        NavItem(HomeTab.Requests, "Requests", Icons.Outlined.Description, Icons.Filled.Description, selected, onSelect)
         NavItem(HomeTab.Profile, "Profile", Icons.Outlined.Person, Icons.Filled.Person, selected, onSelect)
     }
 }
